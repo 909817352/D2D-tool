@@ -1,0 +1,1080 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoRa D2D 可靠性评估</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      padding: 24px;
+      line-height: 1.6;
+      min-width: 600px;
+    }
+    h1 { font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .subtitle { color: #64748b; font-size: 0.8rem; margin-bottom: 20px; }
+    .subtitle code {
+      background: #e2e8f0; padding: 1px 5px; border-radius: 3px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.78rem;
+    }
+    .card {
+      background: #fff; border-radius: 8px; padding: 20px 24px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+    .card-title {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 16px;
+    }
+    .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 700px) { .input-grid { grid-template-columns: 1fr 1fr; } }
+    .input-group label { display: block; font-size: 0.78rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
+    .input-group .hint { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; }
+    input[type="number"], select {
+      width: 100%; padding: 8px 10px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 0.9rem; color: #1e293b;
+      background: #f8fafc; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="number"]:focus, select:focus {
+      outline: none; border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); background: #fff;
+    }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 14px; }
+    .tab-item {
+      padding: 6px 16px; border-radius: 999px; border: 1.5px solid #e2e8f0;
+      background: #fff; font-size: 0.8rem; font-weight: 600; color: #64748b;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .tab-item.active { background: #1e293b; border-color: #1e293b; color: #fff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .rating-block {
+      display: flex; align-items: center; gap: 16px; padding: 16px;
+      border-radius: 8px; background: #f8fafc; border: 1.5px solid #e2e8f0;
+      margin-bottom: 16px;
+    }
+    .rating-icon { font-size: 2rem; flex-shrink: 0; }
+    .rating-body { flex: 1; }
+    .rating-label { font-size: 1rem; font-weight: 700; color: #1e293b; }
+    .rating-desc { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+    .rating-right { text-align: right; flex-shrink: 0; }
+    .rating-main-val { font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1.2; }
+    .rating-main-lbl { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+    .rating-good { background: #f0fdf4; border-color: #86efac; }
+    .rating-good .rating-label, .rating-good .rating-main-val { color: #15803d; }
+    .rating-warn { background: #fffbeb; border-color: #fcd34d; }
+    .rating-warn .rating-label, .rating-warn .rating-main-val { color: #92400e; }
+    .rating-bad { background: #fff1f2; border-color: #fca5a5; }
+    .rating-bad .rating-label, .rating-bad .rating-main-val { color: #be123c; }
+    .tolerance-note {
+      display: flex; align-items: flex-start; gap: 8px;
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+      padding: 10px 14px; font-size: 0.78rem; color: #1e40af;
+      margin-bottom: 16px; line-height: 1.5;
+    }
+    .summary-line {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      color: #334155;
+      font-size: 0.9rem;
+    }
+    .summary-line strong { color: #0f172a; }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 800px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .metric-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      min-height: 82px;
+    }
+    .metric-label {
+      color: #64748b;
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .help-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid #cbd5e1;
+      color: #64748b;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.68rem;
+      line-height: 1;
+      cursor: help;
+      background: #f8fafc;
+    }
+    .metric-value {
+      color: #0f172a;
+      font-size: 1.22rem;
+      font-weight: 800;
+      line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric-help {
+      color: #94a3b8;
+      font-size: 0.7rem;
+      margin-top: 4px;
+    }
+    .suggestion-list {
+      display: grid;
+      gap: 10px;
+    }
+    .suggestion-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px 14px;
+    }
+    .suggestion-rank {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #fff;
+      background: #1e293b;
+    }
+    .suggestion-title {
+      font-size: 0.9rem;
+      font-weight: 750;
+      color: #0f172a;
+      margin-bottom: 2px;
+    }
+    .suggestion-desc {
+      font-size: 0.76rem;
+      color: #64748b;
+      line-height: 1.45;
+    }
+    .suggestion-impact {
+      text-align: right;
+      min-width: 130px;
+    }
+    .suggestion-impact strong {
+      display: block;
+      color: #15803d;
+      font-size: 1rem;
+      line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+    }
+    .suggestion-impact span {
+      color: #94a3b8;
+      font-size: 0.7rem;
+    }
+    .suggestion-note {
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 10px 12px;
+      color: #64748b;
+      font-size: 0.76rem;
+      line-height: 1.5;
+    }
+    .mode-selector {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .mode-option {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .mode-option.active {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+    .mode-option strong {
+      display: block;
+      color: #0f172a;
+      font-size: 0.82rem;
+      margin-bottom: 3px;
+    }
+    .mode-option span {
+      display: block;
+      color: #64748b;
+      font-size: 0.72rem;
+      line-height: 1.35;
+    }
+    @media (max-width: 760px) {
+      .suggestion-item { grid-template-columns: auto 1fr; }
+      .suggestion-impact { grid-column: 2; text-align: left; }
+      .mode-selector { grid-template-columns: 1fr; }
+    }
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+    .compare-col { border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+    .compare-col-hd {
+      background: #f8fafc; padding: 8px 14px; font-size: 0.78rem;
+      font-weight: 700; color: #475569; border-bottom: 1px solid #e2e8f0;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-a { background: #2563eb; }
+    .dot-b { background: #ea580c; }
+    .compare-col-body { padding: 12px 14px; }
+    .compare-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .compare-field label { display: block; font-size: 0.72rem; font-weight: 600; color: #475569; margin-bottom: 4px; }
+    .compare-field input {
+      width: 100%; padding: 6px 8px; border: 1.5px solid #e2e8f0;
+      border-radius: 6px; font-size: 0.88rem; color: #1e293b; background: #f8fafc;
+    }
+    .compare-field input:focus { outline: none; border-color: #2563eb; background: #fff; }
+    .compare-result {
+      border-radius: 7px; padding: 10px 12px; text-align: center;
+      border: 1px solid #e2e8f0; background: #f8fafc;
+    }
+    .compare-result .r-lbl { font-size: 0.7rem; color: #64748b; margin-bottom: 2px; }
+    .compare-result .r-val { font-size: 1.1rem; font-weight: 700; color: #1e293b; }
+    .compare-result .r-sub { font-size: 0.72rem; color: #94a3b8; margin-top: 3px; }
+    .compare-result.good { background: #f0fdf4; border-color: #86efac; }
+    .compare-result.good .r-val { color: #15803d; }
+    .compare-result.warn { background: #fffbeb; border-color: #fcd34d; }
+    .compare-result.warn .r-val { color: #92400e; }
+    .compare-result.bad { background: #fff1f2; border-color: #fca5a5; }
+    .compare-result.bad .r-val { color: #be123c; }
+    .matrix-legend { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: #64748b; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+    .table-wrap { overflow-x: auto; }
+    .matrix-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .matrix-table th {
+      padding: 8px 12px; text-align: center; font-weight: 600;
+      color: #475569; border-bottom: 2px solid #e2e8f0; white-space: nowrap;
+    }
+    .matrix-table th:first-child { text-align: left; }
+    .matrix-table td { padding: 7px 12px; text-align: center; font-weight: 600; border-bottom: 1px solid #f1f5f9; }
+    .matrix-table td.cell-hd { text-align: left; font-weight: 600; color: #475569; background: #f8fafc; }
+    .cell-good { background: #f0fdf4; color: #15803d; }
+    .cell-warn { background: #fffbeb; color: #92400e; }
+    .cell-bad { background: #fff1f2; color: #be123c; }
+    .matrix-note {
+      margin-top: 12px; font-size: 0.72rem; color: #94a3b8; line-height: 1.5;
+      padding-top: 10px; border-top: 1px solid #f1f5f9;
+    }
+  </style>
+</head>
+<body>
+  <h1>LoRa D2D 可靠性评估</h1>
+  <p class="subtitle">
+    EM300 到 WT201 的 D2D 传输可靠性预测工具
+    <code>BW 500 kHz</code> <code>CR4/5</code> <code>Payload 19 B</code> <code>随机抖动 0~5s</code> <code>最小上报周期 60s</code>
+  </p>
+
+  <div class="card">
+    <div class="card-title">配置参数</div>
+    <div class="input-grid">
+      <div class="input-group">
+        <label>同频点设备数 n（台）</label>
+        <input type="number" id="n" value="15" min="2" max="1000" oninput="calc()">
+        <div class="hint">同一个 D2D 频点上的 EM300 数量</div>
+      </div>
+      <div class="input-group">
+        <label>扩频因子 SF</label>
+        <select id="sf" onchange="calc()">
+          <option value="7">SF7</option>
+          <option value="8">SF8</option>
+          <option value="9">SF9</option>
+          <option value="10" selected>SF10（EM300 默认）</option>
+          <option value="11">SF11</option>
+          <option value="12">SF12</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>上报周期 T（秒）</label>
+        <input type="number" id="period" value="180" min="60" max="86400" oninput="calc()">
+        <div class="hint">EM300 D2D 广播间隔，最小 60 秒</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-item active" id="tab_calc" onclick="switchTab('calc')">可靠性评估</button>
+    <button class="tab-item" id="tab_compare" onclick="switchTab('compare')">配置方案对比</button>
+  </div>
+
+  <div class="tab-panel active" id="panel_calc">
+    <div class="card">
+      <div class="rating-block" id="rating_block">
+        <div class="rating-icon" id="rating_icon">-</div>
+        <div class="rating-body">
+          <div class="rating-label" id="rating_label">-</div>
+          <div class="rating-desc" id="rating_desc">-</div>
+        </div>
+        <div class="rating-right">
+          <div class="rating-main-val" id="rating_dc_val">-</div>
+          <div class="rating-main-lbl">7 天预计断联次数</div>
+        </div>
+      </div>
+
+      <div class="summary-line" id="summary_line">-</div>
+
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">24 小时预计断联</div>
+          <div class="metric-value" id="metric_dc_24h">-</div>
+          <div class="metric-help">短期运行风险</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">7 天预计断联</div>
+          <div class="metric-value" id="metric_dc_7d">-</div>
+          <div class="metric-help">一周部署风险</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">
+            平均多久断联一次
+            <span class="help-dot" title="长期运行的统计期望值，表示两次断联事件之间的平均时间。它不是保证值，实际现场会有随机波动。">?</span>
+          </div>
+          <div class="metric-value" id="metric_interval">-</div>
+          <div class="metric-help">两次断联之间的平均时间</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">
+            单次断联预计持续
+            <span class="help-dot" title="从满足断联判定开始，到下一次收到有效 D2D 包并恢复更新的平均持续时间。当前断联判定为 10 分钟无更新。">?</span>
+          </div>
+          <div class="metric-value" id="metric_recovery">-</div>
+          <div class="metric-help">触发断联后的平均时长</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">单包碰撞风险</div>
+          <div class="metric-value" id="metric_packet_loss">-</div>
+          <div class="metric-help">高风险设备视角</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">断联触发门槛</div>
+          <div class="metric-value" id="metric_kdc">-</div>
+          <div class="metric-help">10 分钟无更新</div>
+        </div>
+      </div>
+
+      <div class="tolerance-note">
+        <span>说明：</span><span id="tolerance_text">-</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">自动优化建议</div>
+      <div class="mode-selector" role="group" aria-label="优化建议模式">
+        <button class="mode-option active" id="mode_stability" type="button" onclick="setSuggestionMode('stability')">
+          <strong>稳定优先</strong>
+          <span>尽量减少断联</span>
+        </button>
+        <button class="mode-option" id="mode_power" type="button" onclick="setSuggestionMode('power')">
+          <strong>功耗优先</strong>
+          <span>保持长周期</span>
+        </button>
+        <button class="mode-option" id="mode_capacity" type="button" onclick="setSuggestionMode('capacity')">
+          <strong>容量优先</strong>
+          <span>支持更多设备</span>
+        </button>
+      </div>
+      <div class="suggestion-list" id="suggestion_list"></div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel_compare">
+    <div class="card">
+      <div class="card-title">配置方案对比</div>
+      <div class="compare-grid">
+        <div class="compare-col">
+          <div class="compare-col-hd"><span class="dot dot-a"></span>方案 A</div>
+          <div class="compare-col-body">
+            <div class="compare-inputs">
+              <div class="compare-field">
+                <label>设备数 n</label>
+                <input type="number" id="cmp_n_a" value="15" min="2" max="1000" oninput="calcCompare()">
+              </div>
+              <div class="compare-field">
+                <label>上报周期 T（秒）</label>
+                <input type="number" id="cmp_t_a" value="180" min="60" max="86400" oninput="calcCompare()">
+              </div>
+            </div>
+            <div class="compare-result" id="cmp_result_a">
+              <div class="r-lbl">7 天预计断联次数</div>
+              <div class="r-val" id="cmp_dc_a">-</div>
+              <div class="r-sub" id="cmp_loss_a"></div>
+            </div>
+          </div>
+        </div>
+        <div class="compare-col">
+          <div class="compare-col-hd"><span class="dot dot-b"></span>方案 B</div>
+          <div class="compare-col-body">
+            <div class="compare-inputs">
+              <div class="compare-field">
+                <label>设备数 n</label>
+                <input type="number" id="cmp_n_b" value="30" min="2" max="1000" oninput="calcCompare()">
+              </div>
+              <div class="compare-field">
+                <label>上报周期 T（秒）</label>
+                <input type="number" id="cmp_t_b" value="180" min="60" max="86400" oninput="calcCompare()">
+              </div>
+            </div>
+            <div class="compare-result" id="cmp_result_b">
+              <div class="r-lbl">7 天预计断联次数</div>
+              <div class="r-val" id="cmp_dc_b">-</div>
+              <div class="r-sub" id="cmp_loss_b"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">部署容量矩阵</div>
+      <div class="matrix-legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#f0fdf4;border:1px solid #86efac"></div>优秀（小于 0.1 次）
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#fffbeb;border:1px solid #fcd34d"></div>可接受（0.1 到 1 次）
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#fff1f2;border:1px solid #fca5a5"></div>有风险（大于等于 1 次）
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="matrix-table" id="dc_matrix_table"></table>
+      </div>
+      <div class="matrix-note">
+        横向为上报周期，单位为分钟；纵向为同频点设备数。矩阵数值为 7 天内预计断联次数，断联定义为连续超过 10 分钟未收到任何 D2D 包。随机抖动窗口当前按固件固定值 0~5 秒计算，暂不作为客户可配置参数展示；是否开放更大抖动窗口需要结合实时性、功耗和业务刷新体验另行评估。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const W_J = 5;
+    const PAYLOAD = 19;
+    const DISCONNECT_SECONDS = 600;
+    const STABILITY_TARGET_7D = 0.1;
+    const OPERATION_TARGET_7D = 1;
+    const MIN_PERIOD_SECONDS = 60;
+    const MAX_CAPACITY_N = 1000;
+    let suggestionMode = "stability";
+
+    function calcToA(SF) {
+      const BW = 500000;
+      const CR = 1;
+      const CRC = 1;
+      const IH = 0;
+      const DE = 0;
+      const Tsym = Math.pow(2, SF) / BW * 1000;
+      const Tpre = (8 + 4.25) * Tsym;
+      const num = 8 * PAYLOAD - 4 * SF + 28 + 16 * CRC - 20 * IH;
+      const den = 4 * (SF - 2 * DE);
+      const Npay = 8 + Math.max(Math.ceil(num / den) * (CR + 4), 0);
+      return (Tpre + Npay * Tsym) / 1000;
+    }
+
+    function calcPcoll(n, T, SF) {
+      const ToA_s = calcToA(SF);
+      if (W_J <= 0 || W_J >= T) return NaN;
+      const ppB = 2 * ToA_s / W_J;
+      if (ppB >= 1) return 1;
+      const ratioHr = W_J / T;
+      const pDevHr = 1 - Math.pow(1 - ratioHr, n - 1);
+      const expectedPeers = (n - 1) * ratioHr;
+      const expectedPeersCond = pDevHr > 1e-12 ? expectedPeers / pDevHr : 0;
+      return 1 - Math.pow(1 - ppB, expectedPeersCond);
+    }
+
+    function calcDcCount(p, T, hours) {
+      if (!isFinite(p) || p <= 0 || p >= 1) return NaN;
+      const kDc = Math.ceil(DISCONNECT_SECONDS / T);
+      const pDc = Math.pow(p, kDc);
+      return (hours * 3600 / T) * pDc;
+    }
+
+    function fmtDc(v) {
+      if (!isFinite(v)) return "-";
+      if (v < 0.01) return "< 0.01 次";
+      return v.toFixed(2) + " 次";
+    }
+
+    function fmtInterval(p, T) {
+      if (!isFinite(p) || p <= 0) return "极低，可忽略";
+      const kDc = Math.ceil(DISCONNECT_SECONDS / T);
+      const pDc = Math.pow(p, kDc);
+      if (pDc < 1e-10) return "极低，可忽略";
+      const h = (1 / pDc) * T / 3600;
+      if (!isFinite(h) || h > 99999) return "极低，可忽略";
+      if (h >= 48) {
+        const d = Math.floor(h / 24);
+        const r = Math.round(h % 24);
+        return r > 0 ? d + " 天 " + r + " h" : d + " 天";
+      }
+      return h.toFixed(1) + " h";
+    }
+
+    function fmtRecovery(p, T) {
+      if (!isFinite(p) || p <= 0 || p >= 1) return "-";
+      const kDc = Math.ceil(DISCONNECT_SECONDS / T);
+      const seconds = kDc * T + (p / (1 - p)) * T;
+      if (seconds >= 3600) return (seconds / 3600).toFixed(1) + " h";
+      if (seconds >= 60) return (seconds / 60).toFixed(1) + " min";
+      return Math.round(seconds) + " s";
+    }
+
+    function fmtPercent(v) {
+      if (!isFinite(v)) return "-";
+      if (v < 1) return "< 1%";
+      return Math.round(v) + "%";
+    }
+
+    function scenarioMetrics(n, T, SF) {
+      const p = calcPcoll(n, T, SF);
+      const dc7d = calcDcCount(p, T, 168);
+      return { p, dc7d };
+    }
+
+    function uniqueSortedNumbers(values, desc) {
+      const uniq = [];
+      values.forEach(function(v) {
+        const num = Math.round(v);
+        if (uniq.indexOf(num) === -1) uniq.push(num);
+      });
+      return uniq.sort(function(a, b) { return desc ? b - a : a - b; });
+    }
+
+    function reportingPeriodOptions(T) {
+      return uniqueSortedNumbers([T, 240, 180, 120, 60].filter(function(nextT) {
+        return nextT >= MIN_PERIOD_SECONDS && nextT <= T;
+      }), true);
+    }
+
+    function sfOptions(SF) {
+      const values = [];
+      for (let nextSF = SF; nextSF >= 7; nextSF--) values.push(nextSF);
+      return values;
+    }
+
+    function planChangeText(plan, n, T, SF) {
+      const changes = [];
+      if (plan.T !== T) changes.push("上报周期调整为 " + plan.T + " 秒");
+      if (plan.SF !== SF) changes.push("扩频因子调整为 SF" + plan.SF);
+      if (plan.n !== n) changes.push("同频设备数控制到 " + plan.n + " 台以内");
+      return changes.length > 0 ? changes.join("，") : "保持当前无线参数";
+    }
+
+    function buildPlan(n, T, SF, currentDc7d, mode) {
+      if (mode === "power") return buildPowerPlan(n, T, SF, currentDc7d);
+      if (mode === "capacity") return buildCapacityPlan(n, T, SF, currentDc7d);
+      return buildStabilityPlan(n, T, SF, currentDc7d);
+    }
+
+    function makePlan(title, desc, metrics, currentDc7d, note, impactText) {
+      return {
+        title,
+        desc,
+        dc7d: metrics.dc7d,
+        improvement: currentDc7d > 0 ? (currentDc7d - metrics.dc7d) / currentDc7d * 100 : 0,
+        note,
+        impactText
+      };
+    }
+
+    function findMaxStableN(startN, T, SF, targetDc7d) {
+      let bestN = null;
+      let bestMetrics = null;
+      for (let nextN = Math.max(2, startN); nextN <= MAX_CAPACITY_N; nextN++) {
+        const m = scenarioMetrics(nextN, T, SF);
+        if (!isFinite(m.dc7d) || m.dc7d >= targetDc7d) break;
+        bestN = nextN;
+        bestMetrics = m;
+      }
+      return bestN ? { n: bestN, T, SF, dc7d: bestMetrics.dc7d, p: bestMetrics.p, hitMax: bestN === MAX_CAPACITY_N } : null;
+    }
+
+    function findDensityLimit(T, SF, targetDc7d, maxN) {
+      for (let nextN = Math.min(maxN, MAX_CAPACITY_N); nextN >= 2; nextN--) {
+        const m = scenarioMetrics(nextN, T, SF);
+        if (isFinite(m.dc7d) && m.dc7d < targetDc7d) {
+          return { n: nextN, T, SF, dc7d: m.dc7d, p: m.p };
+        }
+      }
+      return null;
+    }
+
+    function buildStabilityPlan(n, T, SF, currentDc7d) {
+      if (currentDc7d < STABILITY_TARGET_7D) {
+        return {
+          title: "当前配置已满足稳定优先目标",
+          desc: "当前配置预计 7 天断联次数为 " + fmtDc(currentDc7d) + "，已经处于优秀区间。建议保持当前配置；如业务仍要求更保守，可在配置方案对比中评估更短周期或拆分频点。",
+          dc7d: currentDc7d,
+          improvement: 0,
+          note: "稳定优先底线：优先追求 D_7d < 0.1 次；当前参数已达标，不需要为了优化而额外增加功耗或降低链路裕量。",
+          impactText: "无需调整"
+        };
+      }
+
+      const periodOnly = reportingPeriodOptions(T)
+        .filter(function(nextT) { return nextT < T; })
+        .map(function(nextT) {
+          const m = scenarioMetrics(n, nextT, SF);
+          return { n, T: nextT, SF, dc7d: m.dc7d, p: m.p };
+        })
+        .filter(function(item) { return isFinite(item.dc7d) && item.dc7d < STABILITY_TARGET_7D; })
+        .sort(function(a, b) { return b.T - a.T; })[0];
+      if (periodOnly) {
+        return makePlan(
+          "稳定优先建议：将上报周期调整为 " + periodOnly.T + " 秒",
+          "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "。优先缩短上报周期后，10 分钟断联判定内可容忍的连续丢包数量增加，预计断联下降至 " + fmtDc(periodOnly.dc7d) + "。",
+          periodOnly,
+          currentDc7d,
+          "已满足优秀目标（D_7d < 0.1 次）。该方案的代价是上报更频繁，功耗会相应增加；最低可配置周期为 60 秒。"
+        );
+      }
+
+      const sfOnly = sfOptions(SF)
+        .filter(function(nextSF) { return nextSF < SF; })
+        .map(function(nextSF) {
+          const m = scenarioMetrics(n, T, nextSF);
+          return { n, T, SF: nextSF, dc7d: m.dc7d, p: m.p };
+        })
+        .filter(function(item) { return isFinite(item.dc7d) && item.dc7d < STABILITY_TARGET_7D; })
+        .sort(function(a, b) { return b.SF - a.SF; })[0];
+      if (sfOnly) {
+        return makePlan(
+          "稳定优先建议：将扩频因子调整为 SF" + sfOnly.SF,
+          "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "。降低 SF 后空口时间缩短，预计断联下降至 " + fmtDc(sfOnly.dc7d) + "。",
+          sfOnly,
+          currentDc7d,
+          "已满足优秀目标（D_7d < 0.1 次）。降低 SF 会减少接收灵敏度和 SNR 裕量，必须结合现场 RSSI/SNR 验证，避免引入非碰撞类丢包。"
+        );
+      }
+
+      const densityOnly = findDensityLimit(T, SF, STABILITY_TARGET_7D, n - 1);
+      if (densityOnly) {
+        return makePlan(
+          "稳定优先建议：将单频设备数控制到 " + densityOnly.n + " 台以内",
+          "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "。通过拆分频点或分组上报降低单频设备密度后，预计断联下降至 " + fmtDc(densityOnly.dc7d) + "。",
+          densityOnly,
+          currentDc7d,
+          "已满足优秀目标（D_7d < 0.1 次）。这里的设备数指同频点设备数，不代表必须减少项目总设备量。"
+        );
+      }
+
+      const combined = [];
+      reportingPeriodOptions(T).forEach(function(nextT) {
+        sfOptions(SF).forEach(function(nextSF) {
+          const density = findDensityLimit(nextT, nextSF, STABILITY_TARGET_7D, n);
+          if (density) {
+            density.cost = (T - nextT) / 60 + (SF - nextSF) * 2 + (n - density.n) / Math.max(1, n) * 3;
+            combined.push(density);
+          }
+        });
+      });
+      const bestCombined = combined.sort(function(a, b) {
+        return a.cost - b.cost || b.T - a.T || b.SF - a.SF || b.n - a.n;
+      })[0];
+
+      if (bestCombined) {
+        return makePlan(
+          "稳定优先组合建议：" + planChangeText(bestCombined, n, T, SF),
+          "单一调整无法把当前 " + fmtDc(currentDc7d) + " 压到优秀区间。采用该组合后，预计 7 天断联下降至 " + fmtDc(bestCombined.dc7d) + "。",
+          bestCombined,
+          currentDc7d,
+          "已满足优秀目标（D_7d < 0.1 次）。组合方案同时涉及功耗、链路裕量和频点规划，需要按现场约束确认可执行性。"
+        );
+      }
+
+      const boundary = scenarioMetrics(2, MIN_PERIOD_SECONDS, 7);
+      return makePlan(
+        "稳定优先边界：当前可配置范围内无法达成优秀目标",
+        "即使按页面边界调整到 60 秒、SF7，并将单频设备数压到 2 台，理论上仍无法稳定低于 0.1 次/7天。建议重新评估频点规划、业务断联定义或产品侧随机抖动开放价值。",
+        { n: 2, T: MIN_PERIOD_SECONDS, SF: 7, dc7d: boundary.dc7d, p: boundary.p },
+        currentDc7d,
+        "已到边界：最小周期、最低 SF 和最低单频设备密度均已触达，不能继续把配置项无约束降低。"
+      );
+    }
+
+    function buildPowerPlan(n, T, SF, currentDc7d) {
+      if (currentDc7d < OPERATION_TARGET_7D) {
+        return {
+          title: "功耗优先建议：保持当前 " + T + " 秒周期",
+          desc: "当前长周期下预计 7 天断联 " + fmtDc(currentDc7d) + "，仍低于稳定运行底线。建议不为了进一步降低断联而缩短周期，业务侧增加状态保持、补传或连续多次未更新后再告警等容忍机制。",
+          dc7d: currentDc7d,
+          improvement: 0,
+          note: "功耗优先底线：保持长周期，接受偶发断联，但 D_7d 应低于 1 次。当前配置已满足该底线。",
+          impactText: "保持周期"
+        };
+      }
+
+      const densityOnly = findDensityLimit(T, SF, OPERATION_TARGET_7D, n - 1);
+      if (densityOnly) {
+        return makePlan(
+          "功耗优先建议：保持 " + T + " 秒周期，单频设备数控制到 " + densityOnly.n + " 台以内",
+          "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "，已经超过稳定运行底线。为避免缩短周期带来功耗增加，优先通过拆分频点或分组上报降低单频设备密度，预计断联可降至 " + fmtDc(densityOnly.dc7d) + "。",
+          densityOnly,
+          currentDc7d,
+          "已满足稳定运行底线（D_7d < 1 次）。这里控制的是单频点设备数，不是要求减少项目总设备量。"
+        );
+      }
+
+      const sfOnly = sfOptions(SF)
+        .filter(function(nextSF) { return nextSF < SF; })
+        .map(function(nextSF) {
+          const m = scenarioMetrics(n, T, nextSF);
+          return { n, T, SF: nextSF, dc7d: m.dc7d, p: m.p };
+        })
+        .filter(function(item) { return isFinite(item.dc7d) && item.dc7d < OPERATION_TARGET_7D; })
+        .sort(function(a, b) { return b.SF - a.SF; })[0];
+      if (sfOnly) {
+        return makePlan(
+          "功耗优先建议：保持 " + T + " 秒周期，扩频因子调整为 SF" + sfOnly.SF,
+          "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "，已经超过稳定运行底线。保持周期不变并降低 SF 后，预计断联可降至 " + fmtDc(sfOnly.dc7d) + "。",
+          sfOnly,
+          currentDc7d,
+          "已满足稳定运行底线（D_7d < 1 次）。降低 SF 需要现场 RSSI/SNR 验证；如果链路裕量不足，应优先拆分频点而不是降低 SF。"
+        );
+      }
+
+      const samePeriodCombined = [];
+      sfOptions(SF).forEach(function(nextSF) {
+        const density = findDensityLimit(T, nextSF, OPERATION_TARGET_7D, n);
+        if (density) {
+          density.cost = (SF - nextSF) * 2 + (n - density.n) / Math.max(1, n);
+          samePeriodCombined.push(density);
+        }
+      });
+      const samePeriodBest = samePeriodCombined.sort(function(a, b) {
+        return a.cost - b.cost || b.n - a.n || b.SF - a.SF;
+      })[0];
+      if (samePeriodBest) {
+        return makePlan(
+          "功耗优先组合建议：" + planChangeText(samePeriodBest, n, T, SF),
+          "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "。在不缩短 " + T + " 秒周期的前提下，需要同时调整链路占用和单频设备密度，预计断联可降至 " + fmtDc(samePeriodBest.dc7d) + "。",
+          samePeriodBest,
+          currentDc7d,
+          "已满足稳定运行底线（D_7d < 1 次）。该方案保留当前周期，但需要验证 SF 链路裕量，并落实频点拆分或分组。"
+        );
+      }
+
+      const periodFallback = reportingPeriodOptions(T)
+        .filter(function(nextT) { return nextT < T; })
+        .map(function(nextT) {
+          const m = scenarioMetrics(n, nextT, SF);
+          return { n, T: nextT, SF, dc7d: m.dc7d, p: m.p };
+        })
+        .filter(function(item) { return isFinite(item.dc7d) && item.dc7d < OPERATION_TARGET_7D; })
+        .sort(function(a, b) { return b.T - a.T; })[0];
+      if (periodFallback) {
+        return makePlan(
+          "功耗优先取舍：若必须达标，周期需调整为 " + periodFallback.T + " 秒",
+          "在当前同频设备密度和 SF 下，保持 " + T + " 秒周期无法低于 1 次/7天。若业务必须满足稳定运行底线，需要接受功耗增加，将周期调整为 " + periodFallback.T + " 秒，预计断联降至 " + fmtDc(periodFallback.dc7d) + "。",
+          periodFallback,
+          currentDc7d,
+          "这是功耗和稳定性的取舍边界。若不能缩短周期，应通过额外频点、分组或业务容忍机制承接风险。"
+        );
+      }
+
+      return makePlan(
+        "功耗优先边界：保持长周期无法满足稳定运行底线",
+        "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "。在当前可配置范围内，保持长周期并调整 SF 或单频设备密度仍无法低于 1 次/7天，需要重新规划频点、降低业务断联敏感度，或接受缩短周期带来的功耗增加。",
+        { n, T, SF, dc7d: currentDc7d, p: NaN },
+        currentDc7d,
+        "已到边界：功耗目标和稳定性目标冲突，不能继续把周期固定为当前值而要求风险无限下降。",
+        "需要取舍"
+      );
+    }
+
+    function buildCapacityPlan(n, T, SF, currentDc7d) {
+      const currentBoundary = findMaxStableN(n, T, SF, OPERATION_TARGET_7D);
+      if (currentBoundary && currentBoundary.n > n) {
+        const growth = (currentBoundary.n - n) / n * 100;
+        const capacityText = currentBoundary.hitMax ? "至少可提升至页面上限 " + currentBoundary.n + " 台" : "可提升至 " + currentBoundary.n + " 台";
+        return {
+          title: "容量优先建议：当前参数下同频设备数" + capacityText,
+          desc: "在保持上报周期 " + T + " 秒和 SF" + SF + " 不变的前提下，预计" + (currentBoundary.hitMax ? "至少可支持到页面上限 " : "最多可支持约 ") + currentBoundary.n + " 台同频设备，7 天断联约 " + fmtDc(currentBoundary.dc7d) + "。超过该数量后，应通过多频点和分组上报拆分单频负载。",
+          dc7d: currentBoundary.dc7d,
+          improvement: growth,
+          note: "容量优先底线：D_7d 必须低于 1 次。这里提升的是同频点容量，不代表所有设备都应堆在同一个频点。",
+          impactText: "容量 +" + fmtPercent(growth)
+        };
+      }
+
+      if (currentDc7d >= OPERATION_TARGET_7D) {
+        const limit = findDensityLimit(T, SF, OPERATION_TARGET_7D, n - 1);
+        if (limit) {
+          return {
+            title: "容量优先边界：当前单频设备数已超过稳定运行底线",
+            desc: "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "，已经高于 1 次/7天。建议先通过多频点或分组把单频设备数控制到 " + limit.n + " 台以内，再评估是否扩容。",
+            dc7d: limit.dc7d,
+            improvement: (limit.n - n) / n * 100,
+            note: "当前不是继续增加同频设备数的状态。容量优先的前提是稳定运行，超过底线时应先降单频密度。",
+            impactText: "先降密度"
+          };
+        }
+      }
+
+      const adjusted = [];
+      sfOptions(SF).forEach(function(nextSF) {
+        const boundary = findMaxStableN(n, T, nextSF, OPERATION_TARGET_7D);
+        if (boundary && boundary.n > n) {
+          boundary.cost = (SF - nextSF) * 2;
+          adjusted.push(boundary);
+        }
+      });
+      reportingPeriodOptions(T).forEach(function(nextT) {
+        if (nextT >= T) return;
+        sfOptions(SF).forEach(function(nextSF) {
+          const boundary = findMaxStableN(n, nextT, nextSF, OPERATION_TARGET_7D);
+          if (boundary && boundary.n > n) {
+            boundary.cost = (T - nextT) / 60 + (SF - nextSF) * 2;
+            adjusted.push(boundary);
+          }
+        });
+      });
+
+      const best = adjusted.sort(function(a, b) {
+        return b.n - a.n || a.cost - b.cost || b.T - a.T || b.SF - a.SF;
+      })[0];
+      if (best) {
+        const growth = (best.n - n) / n * 100;
+        const capacityText = best.hitMax ? "至少可提升至页面上限 " + best.n + " 台" : "可提升至 " + best.n + " 台";
+        return {
+          title: "容量优先建议：同频设备数" + capacityText,
+          desc: "若要在稳定运行底线内扩容，建议配置为上报周期 " + best.T + " 秒、SF" + best.SF + "，预计 7 天断联约 " + fmtDc(best.dc7d) + "。该方案用" + (best.T < T ? "更短周期" : "当前周期") + "和" + (best.SF < SF ? "更低 SF" : "当前 SF") + "换取更高同频容量。",
+          dc7d: best.dc7d,
+          improvement: growth,
+          note: "已满足稳定运行底线（D_7d < 1 次）。缩短周期会增加功耗，降低 SF 需要 RSSI/SNR 验证；更大规模仍应采用多频点和分组上报。",
+          impactText: "容量 +" + fmtPercent(growth)
+        };
+      }
+
+      return {
+        title: "容量优先边界：当前参数已接近同频容量上限",
+        desc: "在 D_7d < 1 次的稳定运行底线内，当前可配置范围未找到可继续提升同频设备数的方案。若项目需要更多设备，应增加频点或分组上报，而不是继续提高单频设备密度。",
+        dc7d: currentDc7d,
+        improvement: 0,
+        note: "随机抖动窗口当前按固件固定 0~5 秒计算，不作为客户可配置项；如需作为扩容手段，需要产品侧单独评估实时性、功耗和配置复杂度。",
+        impactText: "已到边界"
+      };
+    }
+
+    function renderSuggestions(n, T, SF, currentDc7d) {
+      const list = document.getElementById("suggestion_list");
+      if (!isFinite(currentDc7d)) {
+        list.innerHTML = "<div class=\"suggestion-note\">当前参数无法计算，请先检查设备数、SF 和上报周期。</div>";
+        return;
+      }
+
+      const plan = buildPlan(n, T, SF, currentDc7d, suggestionMode);
+      if (!plan) {
+        list.innerHTML = "<div class=\"suggestion-note\">当前模式下未找到比当前配置更合适的自动建议。请在“配置方案对比”中手动评估更多频点拆分、分组上报或业务容忍机制。</div>";
+        return;
+      }
+
+      let html = "<div class=\"suggestion-item\">";
+      html += "<div class=\"suggestion-rank\">1</div>";
+      html += "<div><div class=\"suggestion-title\">" + plan.title + "</div>";
+      html += "<div class=\"suggestion-desc\">" + plan.desc + "</div></div>";
+      html += "<div class=\"suggestion-impact\">";
+      if (plan.impactText) {
+        html += "<strong>" + plan.impactText + "</strong>";
+      } else if (suggestionMode === "capacity") {
+        html += "<strong>容量 +" + fmtPercent(plan.improvement) + "</strong>";
+      } else if (plan.improvement <= 0) {
+        html += "<strong>无需调整</strong>";
+      } else {
+        html += "<strong>改善 " + fmtPercent(plan.improvement) + "</strong>";
+      }
+      html += "<span>7 天断联约 " + fmtDc(plan.dc7d) + "</span></div>";
+      html += "</div>";
+      html += "<div class=\"suggestion-note\">" + plan.note + "</div>";
+      list.innerHTML = html;
+    }
+
+    function setSuggestionMode(mode) {
+      suggestionMode = mode;
+      ["stability", "power", "capacity"].forEach(function(name) {
+        document.getElementById("mode_" + name).classList.toggle("active", name === mode);
+      });
+      calc();
+    }
+
+    function switchTab(name) {
+      ["calc", "compare"].forEach(function(t) {
+        document.getElementById("tab_" + t).classList.toggle("active", t === name);
+        document.getElementById("panel_" + t).classList.toggle("active", t === name);
+      });
+      if (name === "compare") {
+        calcCompare();
+        calcMatrix();
+      }
+    }
+
+    function riskClass(dc7d) {
+      if (!isFinite(dc7d)) return "";
+      if (dc7d < 0.1) return "rating-good";
+      if (dc7d < 1) return "rating-warn";
+      return "rating-bad";
+    }
+
+    function calc() {
+      const n = Math.max(2, parseInt(document.getElementById("n").value, 10) || 15);
+      const SF = parseInt(document.getElementById("sf").value, 10) || 10;
+      const T = Math.max(60, parseFloat(document.getElementById("period").value) || 180);
+      const p = calcPcoll(n, T, SF);
+      const dc7d = calcDcCount(p, T, 168);
+      const dc24 = calcDcCount(p, T, 24);
+      const intervalText = fmtInterval(p, T);
+      const recoveryText = fmtRecovery(p, T);
+      const kDc = Math.ceil(DISCONNECT_SECONDS / T);
+
+      const block = document.getElementById("rating_block");
+      block.classList.remove("rating-good", "rating-warn", "rating-bad");
+      const cls = riskClass(dc7d);
+      if (cls) block.classList.add(cls);
+
+      const icon = document.getElementById("rating_icon");
+      const label = document.getElementById("rating_label");
+      const desc = document.getElementById("rating_desc");
+      const dcVal = document.getElementById("rating_dc_val");
+
+      if (!isFinite(p) || p >= 1) {
+        icon.textContent = "-";
+        label.textContent = "无法计算";
+        desc.textContent = "请检查输入参数，随机抖动窗口需要小于上报周期。";
+        dcVal.textContent = "-";
+      } else if (dc7d < 0.1) {
+        icon.textContent = "✓";
+        label.textContent = "优秀";
+        desc.textContent = "7 天内断联风险较低，当前配置适合稳定运行。";
+        dcVal.textContent = fmtDc(dc7d);
+      } else if (dc7d < 1) {
+        icon.textContent = "!";
+        label.textContent = "可接受";
+        desc.textContent = "存在偶发断联风险；如需继续降低断联次数，优先考虑缩短上报周期，最低可配置 60 秒。拆分频点或减少同频设备数可作为辅助优化。";
+        dcVal.textContent = fmtDc(dc7d);
+      } else {
+        icon.textContent = "!";
+        label.textContent = "有风险";
+        desc.textContent = "7 天内预计会出现断联；建议优先缩短上报周期，最低可配置 60 秒。拆分频点、减少同频设备数或降低无线信道占用时间可作为辅助优化。";
+        dcVal.textContent = fmtDc(dc7d);
+      }
+
+      const pPct = isFinite(p) ? (p * 100).toFixed(2) : "-";
+      document.getElementById("summary_line").innerHTML =
+        "当前配置为 <strong>" + n + " 台同频设备</strong>、<strong>" + T + " 秒上报周期</strong>、<strong>SF" + SF +
+        "</strong>。预计 7 天断联 <strong>" + fmtDc(dc7d) + "</strong>，平均约 <strong>" + intervalText +
+        "</strong> 出现一次断联，单次断联预计持续约 <strong>" + recoveryText + "</strong>。";
+
+      document.getElementById("metric_dc_24h").textContent = fmtDc(dc24);
+      document.getElementById("metric_dc_7d").textContent = fmtDc(dc7d);
+      document.getElementById("metric_interval").textContent = intervalText;
+      document.getElementById("metric_recovery").textContent = recoveryText;
+      document.getElementById("metric_packet_loss").textContent = pPct + "%";
+      document.getElementById("metric_kdc").textContent = kDc + " 包";
+      renderSuggestions(n, T, SF, dc7d);
+
+      document.getElementById("tolerance_text").innerHTML =
+        "每个上报周期约有 <strong>" + pPct + "%</strong> 的单包碰撞风险。系统断联定义为 10 分钟无更新，当前上报周期下需要连续丢失 <strong>" +
+        kDc + "</strong> 包才会触发断联。单包丢失通常不会直接影响业务显示。";
+
+    }
+
+    function calcCompare() {
+      const SF = parseInt(document.getElementById("sf").value, 10) || 10;
+      ["a", "b"].forEach(function(s) {
+        const n = Math.max(2, parseInt(document.getElementById("cmp_n_" + s).value, 10) || 2);
+        const T = Math.max(60, parseFloat(document.getElementById("cmp_t_" + s).value) || 60);
+        const p = calcPcoll(n, T, SF);
+        const dc7d = calcDcCount(p, T, 168);
+
+        const result = document.getElementById("cmp_result_" + s);
+        result.classList.remove("good", "warn", "bad");
+        const dcEl = document.getElementById("cmp_dc_" + s);
+        const lossEl = document.getElementById("cmp_loss_" + s);
+
+        if (!isFinite(p)) {
+          dcEl.textContent = "-";
+          lossEl.textContent = "";
+          return;
+        }
+
+        dcEl.textContent = fmtDc(dc7d);
+        lossEl.textContent = "单包碰撞风险 " + (p * 100).toFixed(2) + "%";
+
+        if (dc7d < 0.1) result.classList.add("good");
+        else if (dc7d < 1) result.classList.add("warn");
+        else result.classList.add("bad");
+      });
+    }
+
+    function calcMatrix() {
+      const SF = parseInt(document.getElementById("sf").value, 10) || 10;
+      const ns = [5, 10, 15, 20, 30];
+      const Ts = [60, 120, 180, 300, 600];
+
+      function fmtT(t) {
+        return (t / 60) + " min";
+      }
+
+      let html = "<thead><tr><th>设备数 / 上报周期</th>";
+      Ts.forEach(function(t) { html += "<th>" + fmtT(t) + "</th>"; });
+      html += "</tr></thead><tbody>";
+
+      ns.forEach(function(n) {
+        html += "<tr><td class=\"cell-hd\">" + n + " 台</td>";
+        Ts.forEach(function(T) {
+          const p = calcPcoll(n, T, SF);
+          const dc7d = calcDcCount(p, T, 168);
+          let cls;
+          let txt;
+          if (!isFinite(dc7d)) {
+            cls = "";
+            txt = "-";
+          } else if (dc7d < 0.1) {
+            cls = "cell-good";
+            txt = dc7d < 0.01 ? "< 0.01" : dc7d.toFixed(2);
+          } else if (dc7d < 1) {
+            cls = "cell-warn";
+            txt = dc7d.toFixed(2);
+          } else {
+            cls = "cell-bad";
+            txt = dc7d.toFixed(1);
+          }
+          html += "<td class=\"" + cls + "\">" + txt + "</td>";
+        });
+        html += "</tr>";
+      });
+      html += "</tbody>";
+      document.getElementById("dc_matrix_table").innerHTML = html;
+    }
+
+    calc();
+    calcCompare();
+    calcMatrix();
+  </script>
+</body>
+</html>
