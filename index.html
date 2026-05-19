@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -29,7 +29,7 @@
       font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 16px;
     }
-    .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
     @media (max-width: 700px) { .input-grid { grid-template-columns: 1fr 1fr; } }
     .input-group label { display: block; font-size: 0.78rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
     .input-group .hint { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; }
@@ -281,22 +281,56 @@
       margin-top: 12px; font-size: 0.72rem; color: #94a3b8; line-height: 1.5;
       padding-top: 10px; border-top: 1px solid #f1f5f9;
     }
+    .loss-runtime-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+    @media (max-width: 800px) { .loss-runtime-grid { grid-template-columns: 1fr; } }
+    .loss-runtime-card {
+      border: 1px solid #e2e8f0; border-radius: 7px; padding: 12px;
+      background: #f8fafc;
+    }
+    .loss-runtime-title { font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 8px; }
+    .loss-risk-main {
+      border: 1px solid #bfdbfe; border-radius: 7px; padding: 10px 12px;
+      background: #eff6ff; margin-bottom: 10px;
+    }
+    .loss-risk-main.warn { border-color: #fde68a; background: #fffbeb; }
+    .loss-risk-main.bad { border-color: #fecaca; background: #fef2f2; }
+    .loss-risk-label { font-size: 0.72rem; font-weight: 700; color: #475569; margin-bottom: 4px; }
+    .loss-risk-value { font-size: 1.45rem; line-height: 1.1; font-weight: 800; color: #0f172a; }
+    .loss-risk-sub { font-size: 0.72rem; color: #64748b; margin-top: 4px; }
+    .loss-context-list { display: grid; gap: 7px; }
+    .loss-context-row {
+      display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px 12px;
+      padding: 7px 0; border-top: 1px solid #e2e8f0;
+      font-size: 0.76rem; color: #475569;
+    }
+    .loss-context-row:first-child { border-top: 0; }
+    .loss-context-label { font-weight: 700; color: #334155; }
+    .loss-context-value { color: #334155; text-align: right; }
+    .loss-context-note {
+      grid-column: 2; color: #94a3b8; font-size: 0.7rem; line-height: 1.35;
+      text-align: right;
+    }
   </style>
 </head>
 <body>
   <h1>LoRa D2D 可靠性评估</h1>
   <p class="subtitle">
     EM300 到 WT201 的 D2D 传输可靠性预测工具
-    <code>BW 500 kHz</code> <code>CR4/5</code> <code>Payload 19 B</code> <code>随机抖动 0~5s</code> <code>最小上报周期 60s</code>
+    <code>V3.1 Web Mean</code> <code>BW 500 kHz</code> <code>CR4/5</code> <code>Payload 19 B</code> <code>最小上报周期 60s</code>
   </p>
 
   <div class="card">
     <div class="card-title">配置参数</div>
     <div class="input-grid">
       <div class="input-group">
-        <label>同频点设备数 n（台）</label>
-        <input type="number" id="n" value="15" min="2" max="1000" oninput="calc()">
-        <div class="hint">同一个 D2D 频点上的 EM300 数量</div>
+        <label>发送端数量（EM300）</label>
+        <input type="number" id="tx_count" value="15" min="1" max="1000" oninput="calc()">
+        <div class="hint">同一 D2D 频点上的发送端数量</div>
+      </div>
+      <div class="input-group">
+        <label>接收端数量（WT201）</label>
+        <input type="number" id="rx_count" value="10" min="1" max="1000" oninput="calc()">
+        <div class="hint">用于累计业务链路和连续丢包段数</div>
       </div>
       <div class="input-group">
         <label>扩频因子 SF</label>
@@ -311,8 +345,8 @@
       </div>
       <div class="input-group">
         <label>上报周期 T（秒）</label>
-        <input type="number" id="period" value="180" min="60" max="86400" oninput="calc()">
-        <div class="hint">EM300 D2D 广播间隔，最小 60 秒</div>
+        <input type="number" id="period" value="180" min="60" max="6553" oninput="calc()">
+        <div class="hint">EM300 D2D 广播间隔，60~6553 秒</div>
       </div>
     </div>
   </div>
@@ -332,30 +366,28 @@
         </div>
         <div class="rating-right">
           <div class="rating-main-val" id="rating_dc_val">-</div>
-          <div class="rating-main-lbl">7 天预计断联次数</div>
+          <div class="rating-main-lbl">7 天断联概率</div>
         </div>
       </div>
 
-      <div class="summary-line" id="summary_line">-</div>
-
       <div class="metric-grid">
         <div class="metric-card">
-          <div class="metric-label">24 小时预计断联</div>
-          <div class="metric-value" id="metric_dc_24h">-</div>
-          <div class="metric-help">短期运行风险</div>
+          <div class="metric-label">24 小时断联概率</div>
+          <div class="metric-value" id="metric_prob_24h">-</div>
+          <div class="metric-help">至少一次断联的概率</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">7 天预计断联</div>
-          <div class="metric-value" id="metric_dc_7d">-</div>
-          <div class="metric-help">一周部署风险</div>
+          <div class="metric-label">7 天断联概率</div>
+          <div class="metric-value" id="metric_prob_7d">-</div>
+          <div class="metric-help">至少一次断联的概率</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">
-            平均多久断联一次
-            <span class="help-dot" title="长期运行的统计期望值，表示两次断联事件之间的平均时间。它不是保证值，实际现场会有随机波动。">?</span>
+            部署后多久可能发生断联一次
+            <span class="help-dot" title="由 V3.1 单包风险和断联门槛换算得到的长期统计期望值，不是保证值；实际现场会有随机波动。">?</span>
           </div>
           <div class="metric-value" id="metric_interval">-</div>
-          <div class="metric-help">两次断联之间的平均时间</div>
+          <div class="metric-help">长期统计期望间隔</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">
@@ -366,9 +398,9 @@
           <div class="metric-help">触发断联后的平均时长</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">单包碰撞风险</div>
+          <div class="metric-label">单包丢失风险</div>
           <div class="metric-value" id="metric_packet_loss">-</div>
-          <div class="metric-help">高风险设备视角</div>
+          <div class="metric-help">V3.1 Web Mean 单链路</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">断联触发门槛</div>
@@ -377,9 +409,6 @@
         </div>
       </div>
 
-      <div class="tolerance-note">
-        <span>说明：</span><span id="tolerance_text">-</span>
-      </div>
     </div>
 
     <div class="card">
@@ -400,6 +429,14 @@
       </div>
       <div class="suggestion-list" id="suggestion_list"></div>
     </div>
+
+    <div class="card">
+      <div class="card-title">连续丢包与 10 分钟断联估算</div>
+      <div class="loss-runtime-grid" id="loss_runtime_grid"></div>
+      <div class="matrix-note">
+        段数按 V3.1 Web Mean 单包风险估算，统计基数为业务绑定链路数 × 运行周期内的上报包位；当前页面以接收端数量作为业务绑定链路数。该工具用于解释不同运行时长下的连续丢包量级，不替代现场日志验证。
+      </div>
+    </div>
   </div>
 
   <div class="tab-panel" id="panel_compare">
@@ -411,16 +448,20 @@
           <div class="compare-col-body">
             <div class="compare-inputs">
               <div class="compare-field">
-                <label>设备数 n</label>
-                <input type="number" id="cmp_n_a" value="15" min="2" max="1000" oninput="calcCompare()">
+                <label>发送端</label>
+                <input type="number" id="cmp_tx_a" value="15" min="1" max="1000" oninput="calcCompare()">
+              </div>
+              <div class="compare-field">
+                <label>接收端</label>
+                <input type="number" id="cmp_rx_a" value="10" min="1" max="1000" oninput="calcCompare()">
               </div>
               <div class="compare-field">
                 <label>上报周期 T（秒）</label>
-                <input type="number" id="cmp_t_a" value="180" min="60" max="86400" oninput="calcCompare()">
+                <input type="number" id="cmp_t_a" value="180" min="60" max="6553" oninput="calcCompare()">
               </div>
             </div>
             <div class="compare-result" id="cmp_result_a">
-              <div class="r-lbl">7 天预计断联次数</div>
+              <div class="r-lbl">7 天断联概率</div>
               <div class="r-val" id="cmp_dc_a">-</div>
               <div class="r-sub" id="cmp_loss_a"></div>
             </div>
@@ -431,55 +472,68 @@
           <div class="compare-col-body">
             <div class="compare-inputs">
               <div class="compare-field">
-                <label>设备数 n</label>
-                <input type="number" id="cmp_n_b" value="30" min="2" max="1000" oninput="calcCompare()">
+                <label>发送端</label>
+                <input type="number" id="cmp_tx_b" value="30" min="1" max="1000" oninput="calcCompare()">
+              </div>
+              <div class="compare-field">
+                <label>接收端</label>
+                <input type="number" id="cmp_rx_b" value="10" min="1" max="1000" oninput="calcCompare()">
               </div>
               <div class="compare-field">
                 <label>上报周期 T（秒）</label>
-                <input type="number" id="cmp_t_b" value="180" min="60" max="86400" oninput="calcCompare()">
+                <input type="number" id="cmp_t_b" value="180" min="60" max="6553" oninput="calcCompare()">
               </div>
             </div>
             <div class="compare-result" id="cmp_result_b">
-              <div class="r-lbl">7 天预计断联次数</div>
+              <div class="r-lbl">7 天断联概率</div>
               <div class="r-val" id="cmp_dc_b">-</div>
               <div class="r-sub" id="cmp_loss_b"></div>
             </div>
           </div>
         </div>
       </div>
+      <div class="matrix-note" id="compare_summary">-</div>
     </div>
 
     <div class="card">
-      <div class="card-title">部署容量矩阵</div>
+      <div class="card-title">7 天断联概率矩阵</div>
       <div class="matrix-legend">
         <div class="legend-item">
-          <div class="legend-dot" style="background:#f0fdf4;border:1px solid #86efac"></div>优秀（小于 0.1 次）
+          <div class="legend-dot" style="background:#f0fdf4;border:1px solid #86efac"></div>优秀（小于 5%）
         </div>
         <div class="legend-item">
-          <div class="legend-dot" style="background:#fffbeb;border:1px solid #fcd34d"></div>可接受（0.1 到 1 次）
+          <div class="legend-dot" style="background:#fffbeb;border:1px solid #fcd34d"></div>可接受（5% 到 20%）
         </div>
         <div class="legend-item">
-          <div class="legend-dot" style="background:#fff1f2;border:1px solid #fca5a5"></div>有风险（大于等于 1 次）
+          <div class="legend-dot" style="background:#fff1f2;border:1px solid #fca5a5"></div>有风险（大于等于 20%）
         </div>
       </div>
       <div class="table-wrap">
         <table class="matrix-table" id="dc_matrix_table"></table>
       </div>
       <div class="matrix-note">
-        横向为上报周期，单位为分钟；纵向为同频点设备数。矩阵数值为 7 天内预计断联次数，断联定义为连续超过 10 分钟未收到任何 D2D 包。随机抖动窗口当前按固件固定值 0~5 秒计算，暂不作为客户可配置参数展示；是否开放更大抖动窗口需要结合实时性、功耗和业务刷新体验另行评估。
+        横向为上报周期，单位为分钟；纵向为同频点发送端数量。矩阵数值为当前接收端数量下 7 天内至少一次断联概率，断联定义为连续超过 10 分钟未收到任何 D2D 包。上报周期越长，10 分钟断联门槛对应的连续丢包包数越少，因此断联概率会明显升高。
       </div>
     </div>
   </div>
 
   <script>
-    const W_J = 5;
     const PAYLOAD = 19;
     const DISCONNECT_SECONDS = 600;
+    const V31_TOA_FACTOR = 2.4;
+    const V31_W_FLOOR = 0.20;
+    const RX_BUSY_P = 1 / 600;
     const STABILITY_TARGET_7D = 0.1;
     const OPERATION_TARGET_7D = 1;
     const MIN_PERIOD_SECONDS = 60;
+    const MAX_PERIOD_SECONDS = 6553;
     const MAX_CAPACITY_N = 1000;
     let suggestionMode = "stability";
+
+    function clampNumber(value, min, max) {
+      if (!isFinite(value)) return min;
+      return Math.min(max, Math.max(min, value));
+    }
 
     function calcToA(SF) {
       const BW = 500000;
@@ -495,23 +549,29 @@
       return (Tpre + Npay * Tsym) / 1000;
     }
 
-    function calcPcoll(n, T, SF) {
+    function calcEffectiveWindow(SF) {
       const ToA_s = calcToA(SF);
-      if (W_J <= 0 || W_J >= T) return NaN;
-      const ppB = 2 * ToA_s / W_J;
-      if (ppB >= 1) return 1;
-      const ratioHr = W_J / T;
-      const pDevHr = 1 - Math.pow(1 - ratioHr, n - 1);
-      const expectedPeers = (n - 1) * ratioHr;
-      const expectedPeersCond = pDevHr > 1e-12 ? expectedPeers / pDevHr : 0;
-      return 1 - Math.pow(1 - ppB, expectedPeersCond);
+      return Math.max(V31_TOA_FACTOR * ToA_s, V31_W_FLOOR);
     }
 
-    function calcDcCount(p, T, hours) {
+    function calcPcoll(txCount, T, SF) {
+      const wEff = calcEffectiveWindow(SF);
+      if (wEff <= 0 || 2 * wEff >= T) return NaN;
+      const pairOverlap = Math.min(1, 2 * wEff / T);
+      const phaseP = 1 - Math.pow(1 - pairOverlap, Math.max(0, txCount - 1));
+      return 1 - (1 - phaseP) * (1 - RX_BUSY_P);
+    }
+
+    function calcDcCount(p, T, hours, linkCount) {
       if (!isFinite(p) || p <= 0 || p >= 1) return NaN;
       const kDc = Math.ceil(DISCONNECT_SECONDS / T);
       const pDc = Math.pow(p, kDc);
-      return (hours * 3600 / T) * pDc;
+      return Math.max(1, linkCount || 1) * (hours * 3600 / T) * pDc;
+    }
+
+    function calcEventProbability(expectedCount) {
+      if (!isFinite(expectedCount) || expectedCount < 0) return NaN;
+      return 1 - Math.exp(-expectedCount);
     }
 
     function fmtDc(v) {
@@ -520,12 +580,21 @@
       return v.toFixed(2) + " 次";
     }
 
-    function fmtInterval(p, T) {
+    function fmtProbability(v) {
+      if (!isFinite(v)) return "-";
+      if (v <= 0) return "0%";
+      if (v < 0.0001) return "< 0.01%";
+      if (v < 0.01) return (v * 100).toFixed(2) + "%";
+      if (v < 0.1) return (v * 100).toFixed(1) + "%";
+      return Math.min(100, v * 100).toFixed(0) + "%";
+    }
+
+    function fmtInterval(p, T, linkCount) {
       if (!isFinite(p) || p <= 0) return "极低，可忽略";
       const kDc = Math.ceil(DISCONNECT_SECONDS / T);
       const pDc = Math.pow(p, kDc);
       if (pDc < 1e-10) return "极低，可忽略";
-      const h = (1 / pDc) * T / 3600;
+      const h = (1 / (Math.max(1, linkCount || 1) * pDc)) * T / 3600;
       if (!isFinite(h) || h > 99999) return "极低，可忽略";
       if (h >= 48) {
         const d = Math.floor(h / 24);
@@ -550,10 +619,39 @@
       return Math.round(v) + "%";
     }
 
-    function scenarioMetrics(n, T, SF) {
-      const p = calcPcoll(n, T, SF);
-      const dc7d = calcDcCount(p, T, 168);
-      return { p, dc7d };
+    function fmtCount(v) {
+      if (!isFinite(v)) return "-";
+      if (v < 0.01) return "< 0.01";
+      if (v < 1) return v.toFixed(3);
+      if (v < 10) return v.toFixed(2);
+      if (v < 100) return v.toFixed(1);
+      return Math.round(v).toLocaleString("zh-CN");
+    }
+
+    function riskBand(probability) {
+      if (!isFinite(probability)) return "";
+      if (probability >= 0.2) return "bad";
+      if (probability >= 0.05) return "warn";
+      return "";
+    }
+
+    function expectedLossSegments(p, T, hours, linkCount, runLen) {
+      if (!isFinite(p) || p <= 0 || p >= 1) return NaN;
+      const totalSlots = Math.max(1, linkCount || 1) * hours * 3600 / T;
+      return totalSlots * Math.pow(p, runLen) * (1 - p);
+    }
+
+    function expectedLossAtLeast(p, T, hours, linkCount, runLen) {
+      if (!isFinite(p) || p <= 0 || p >= 1) return NaN;
+      const totalSlots = Math.max(1, linkCount || 1) * hours * 3600 / T;
+      return totalSlots * Math.pow(p, runLen);
+    }
+
+    function scenarioMetrics(txCount, rxCount, T, SF) {
+      const p = calcPcoll(txCount, T, SF);
+      const linkCount = Math.max(1, rxCount);
+      const dc7d = calcDcCount(p, T, 168, linkCount);
+      return { p, dc7d, linkCount };
     }
 
     function uniqueSortedNumbers(values, desc) {
@@ -581,14 +679,14 @@
       const changes = [];
       if (plan.T !== T) changes.push("上报周期调整为 " + plan.T + " 秒");
       if (plan.SF !== SF) changes.push("扩频因子调整为 SF" + plan.SF);
-      if (plan.n !== n) changes.push("同频设备数控制到 " + plan.n + " 台以内");
+      if (plan.n !== n) changes.push("同频发送端控制到 " + plan.n + " 台以内");
       return changes.length > 0 ? changes.join("，") : "保持当前无线参数";
     }
 
-    function buildPlan(n, T, SF, currentDc7d, mode) {
-      if (mode === "power") return buildPowerPlan(n, T, SF, currentDc7d);
-      if (mode === "capacity") return buildCapacityPlan(n, T, SF, currentDc7d);
-      return buildStabilityPlan(n, T, SF, currentDc7d);
+    function buildPlan(n, rxCount, T, SF, currentDc7d, mode) {
+      if (mode === "power") return buildPowerPlan(n, rxCount, T, SF, currentDc7d);
+      if (mode === "capacity") return buildCapacityPlan(n, rxCount, T, SF, currentDc7d);
+      return buildStabilityPlan(n, rxCount, T, SF, currentDc7d);
     }
 
     function makePlan(title, desc, metrics, currentDc7d, note, impactText) {
@@ -602,11 +700,11 @@
       };
     }
 
-    function findMaxStableN(startN, T, SF, targetDc7d) {
+    function findMaxStableN(startN, rxCount, T, SF, targetDc7d) {
       let bestN = null;
       let bestMetrics = null;
       for (let nextN = Math.max(2, startN); nextN <= MAX_CAPACITY_N; nextN++) {
-        const m = scenarioMetrics(nextN, T, SF);
+        const m = scenarioMetrics(nextN, rxCount, T, SF);
         if (!isFinite(m.dc7d) || m.dc7d >= targetDc7d) break;
         bestN = nextN;
         bestMetrics = m;
@@ -614,9 +712,9 @@
       return bestN ? { n: bestN, T, SF, dc7d: bestMetrics.dc7d, p: bestMetrics.p, hitMax: bestN === MAX_CAPACITY_N } : null;
     }
 
-    function findDensityLimit(T, SF, targetDc7d, maxN) {
+    function findDensityLimit(rxCount, T, SF, targetDc7d, maxN) {
       for (let nextN = Math.min(maxN, MAX_CAPACITY_N); nextN >= 2; nextN--) {
-        const m = scenarioMetrics(nextN, T, SF);
+        const m = scenarioMetrics(nextN, rxCount, T, SF);
         if (isFinite(m.dc7d) && m.dc7d < targetDc7d) {
           return { n: nextN, T, SF, dc7d: m.dc7d, p: m.p };
         }
@@ -624,7 +722,7 @@
       return null;
     }
 
-    function buildStabilityPlan(n, T, SF, currentDc7d) {
+    function buildStabilityPlan(n, rxCount, T, SF, currentDc7d) {
       if (currentDc7d < STABILITY_TARGET_7D) {
         return {
           title: "当前配置已满足稳定优先目标",
@@ -639,7 +737,7 @@
       const periodOnly = reportingPeriodOptions(T)
         .filter(function(nextT) { return nextT < T; })
         .map(function(nextT) {
-          const m = scenarioMetrics(n, nextT, SF);
+          const m = scenarioMetrics(n, rxCount, nextT, SF);
           return { n, T: nextT, SF, dc7d: m.dc7d, p: m.p };
         })
         .filter(function(item) { return isFinite(item.dc7d) && item.dc7d < STABILITY_TARGET_7D; })
@@ -657,7 +755,7 @@
       const sfOnly = sfOptions(SF)
         .filter(function(nextSF) { return nextSF < SF; })
         .map(function(nextSF) {
-          const m = scenarioMetrics(n, T, nextSF);
+          const m = scenarioMetrics(n, rxCount, T, nextSF);
           return { n, T, SF: nextSF, dc7d: m.dc7d, p: m.p };
         })
         .filter(function(item) { return isFinite(item.dc7d) && item.dc7d < STABILITY_TARGET_7D; })
@@ -672,21 +770,21 @@
         );
       }
 
-      const densityOnly = findDensityLimit(T, SF, STABILITY_TARGET_7D, n - 1);
+      const densityOnly = findDensityLimit(rxCount, T, SF, STABILITY_TARGET_7D, n - 1);
       if (densityOnly) {
         return makePlan(
-          "稳定优先建议：将单频设备数控制到 " + densityOnly.n + " 台以内",
+          "稳定优先建议：将单频发送端控制到 " + densityOnly.n + " 台以内",
           "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "。通过拆分频点或分组上报降低单频设备密度后，预计断联下降至 " + fmtDc(densityOnly.dc7d) + "。",
           densityOnly,
           currentDc7d,
-          "已满足优秀目标（D_7d < 0.1 次）。这里的设备数指同频点设备数，不代表必须减少项目总设备量。"
+          "已满足优秀目标（D_7d < 0.1 次）。这里的数量指同频点发送端，不代表必须减少项目总设备量。"
         );
       }
 
       const combined = [];
       reportingPeriodOptions(T).forEach(function(nextT) {
         sfOptions(SF).forEach(function(nextSF) {
-          const density = findDensityLimit(nextT, nextSF, STABILITY_TARGET_7D, n);
+          const density = findDensityLimit(rxCount, nextT, nextSF, STABILITY_TARGET_7D, n);
           if (density) {
             density.cost = (T - nextT) / 60 + (SF - nextSF) * 2 + (n - density.n) / Math.max(1, n) * 3;
             combined.push(density);
@@ -707,17 +805,17 @@
         );
       }
 
-      const boundary = scenarioMetrics(2, MIN_PERIOD_SECONDS, 7);
+      const boundary = scenarioMetrics(2, rxCount, MIN_PERIOD_SECONDS, 7);
       return makePlan(
         "稳定优先边界：当前可配置范围内无法达成优秀目标",
-        "即使按页面边界调整到 60 秒、SF7，并将单频设备数压到 2 台，理论上仍无法稳定低于 0.1 次/7天。建议重新评估频点规划、业务断联定义或产品侧随机抖动开放价值。",
+        "即使按页面边界调整到 60 秒、SF7，并将单频发送端压到 2 台，理论上仍无法稳定低于 0.1 次/7天。建议重新评估频点规划、业务断联定义或保守模式开放价值。",
         { n: 2, T: MIN_PERIOD_SECONDS, SF: 7, dc7d: boundary.dc7d, p: boundary.p },
         currentDc7d,
         "已到边界：最小周期、最低 SF 和最低单频设备密度均已触达，不能继续把配置项无约束降低。"
       );
     }
 
-    function buildPowerPlan(n, T, SF, currentDc7d) {
+    function buildPowerPlan(n, rxCount, T, SF, currentDc7d) {
       if (currentDc7d < OPERATION_TARGET_7D) {
         return {
           title: "功耗优先建议：保持当前 " + T + " 秒周期",
@@ -729,21 +827,21 @@
         };
       }
 
-      const densityOnly = findDensityLimit(T, SF, OPERATION_TARGET_7D, n - 1);
+      const densityOnly = findDensityLimit(rxCount, T, SF, OPERATION_TARGET_7D, n - 1);
       if (densityOnly) {
         return makePlan(
-          "功耗优先建议：保持 " + T + " 秒周期，单频设备数控制到 " + densityOnly.n + " 台以内",
+          "功耗优先建议：保持 " + T + " 秒周期，单频发送端控制到 " + densityOnly.n + " 台以内",
           "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "，已经超过稳定运行底线。为避免缩短周期带来功耗增加，优先通过拆分频点或分组上报降低单频设备密度，预计断联可降至 " + fmtDc(densityOnly.dc7d) + "。",
           densityOnly,
           currentDc7d,
-          "已满足稳定运行底线（D_7d < 1 次）。这里控制的是单频点设备数，不是要求减少项目总设备量。"
+          "已满足稳定运行底线（D_7d < 1 次）。这里控制的是单频点发送端数量，不是要求减少项目总设备量。"
         );
       }
 
       const sfOnly = sfOptions(SF)
         .filter(function(nextSF) { return nextSF < SF; })
         .map(function(nextSF) {
-          const m = scenarioMetrics(n, T, nextSF);
+          const m = scenarioMetrics(n, rxCount, T, nextSF);
           return { n, T, SF: nextSF, dc7d: m.dc7d, p: m.p };
         })
         .filter(function(item) { return isFinite(item.dc7d) && item.dc7d < OPERATION_TARGET_7D; })
@@ -760,7 +858,7 @@
 
       const samePeriodCombined = [];
       sfOptions(SF).forEach(function(nextSF) {
-        const density = findDensityLimit(T, nextSF, OPERATION_TARGET_7D, n);
+        const density = findDensityLimit(rxCount, T, nextSF, OPERATION_TARGET_7D, n);
         if (density) {
           density.cost = (SF - nextSF) * 2 + (n - density.n) / Math.max(1, n);
           samePeriodCombined.push(density);
@@ -782,7 +880,7 @@
       const periodFallback = reportingPeriodOptions(T)
         .filter(function(nextT) { return nextT < T; })
         .map(function(nextT) {
-          const m = scenarioMetrics(n, nextT, SF);
+          const m = scenarioMetrics(n, rxCount, nextT, SF);
           return { n, T: nextT, SF, dc7d: m.dc7d, p: m.p };
         })
         .filter(function(item) { return isFinite(item.dc7d) && item.dc7d < OPERATION_TARGET_7D; })
@@ -807,13 +905,13 @@
       );
     }
 
-    function buildCapacityPlan(n, T, SF, currentDc7d) {
-      const currentBoundary = findMaxStableN(n, T, SF, OPERATION_TARGET_7D);
+    function buildCapacityPlan(n, rxCount, T, SF, currentDc7d) {
+      const currentBoundary = findMaxStableN(n, rxCount, T, SF, OPERATION_TARGET_7D);
       if (currentBoundary && currentBoundary.n > n) {
         const growth = (currentBoundary.n - n) / n * 100;
         const capacityText = currentBoundary.hitMax ? "至少可提升至页面上限 " + currentBoundary.n + " 台" : "可提升至 " + currentBoundary.n + " 台";
         return {
-          title: "容量优先建议：当前参数下同频设备数" + capacityText,
+          title: "容量优先建议：当前参数下同频发送端" + capacityText,
           desc: "在保持上报周期 " + T + " 秒和 SF" + SF + " 不变的前提下，预计" + (currentBoundary.hitMax ? "至少可支持到页面上限 " : "最多可支持约 ") + currentBoundary.n + " 台同频设备，7 天断联约 " + fmtDc(currentBoundary.dc7d) + "。超过该数量后，应通过多频点和分组上报拆分单频负载。",
           dc7d: currentBoundary.dc7d,
           improvement: growth,
@@ -823,14 +921,14 @@
       }
 
       if (currentDc7d >= OPERATION_TARGET_7D) {
-        const limit = findDensityLimit(T, SF, OPERATION_TARGET_7D, n - 1);
+        const limit = findDensityLimit(rxCount, T, SF, OPERATION_TARGET_7D, n - 1);
         if (limit) {
           return {
-            title: "容量优先边界：当前单频设备数已超过稳定运行底线",
-            desc: "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "，已经高于 1 次/7天。建议先通过多频点或分组把单频设备数控制到 " + limit.n + " 台以内，再评估是否扩容。",
+            title: "容量优先边界：当前单频发送端已超过稳定运行底线",
+            desc: "当前配置预计 7 天断联 " + fmtDc(currentDc7d) + "，已经高于 1 次/7天。建议先通过多频点或分组把单频发送端控制到 " + limit.n + " 台以内，再评估是否扩容。",
             dc7d: limit.dc7d,
             improvement: (limit.n - n) / n * 100,
-            note: "当前不是继续增加同频设备数的状态。容量优先的前提是稳定运行，超过底线时应先降单频密度。",
+            note: "当前不是继续增加同频发送端的状态。容量优先的前提是稳定运行，超过底线时应先降单频密度。",
             impactText: "先降密度"
           };
         }
@@ -838,7 +936,7 @@
 
       const adjusted = [];
       sfOptions(SF).forEach(function(nextSF) {
-        const boundary = findMaxStableN(n, T, nextSF, OPERATION_TARGET_7D);
+        const boundary = findMaxStableN(n, rxCount, T, nextSF, OPERATION_TARGET_7D);
         if (boundary && boundary.n > n) {
           boundary.cost = (SF - nextSF) * 2;
           adjusted.push(boundary);
@@ -847,7 +945,7 @@
       reportingPeriodOptions(T).forEach(function(nextT) {
         if (nextT >= T) return;
         sfOptions(SF).forEach(function(nextSF) {
-          const boundary = findMaxStableN(n, nextT, nextSF, OPERATION_TARGET_7D);
+          const boundary = findMaxStableN(n, rxCount, nextT, nextSF, OPERATION_TARGET_7D);
           if (boundary && boundary.n > n) {
             boundary.cost = (T - nextT) / 60 + (SF - nextSF) * 2;
             adjusted.push(boundary);
@@ -862,7 +960,7 @@
         const growth = (best.n - n) / n * 100;
         const capacityText = best.hitMax ? "至少可提升至页面上限 " + best.n + " 台" : "可提升至 " + best.n + " 台";
         return {
-          title: "容量优先建议：同频设备数" + capacityText,
+          title: "容量优先建议：同频发送端" + capacityText,
           desc: "若要在稳定运行底线内扩容，建议配置为上报周期 " + best.T + " 秒、SF" + best.SF + "，预计 7 天断联约 " + fmtDc(best.dc7d) + "。该方案用" + (best.T < T ? "更短周期" : "当前周期") + "和" + (best.SF < SF ? "更低 SF" : "当前 SF") + "换取更高同频容量。",
           dc7d: best.dc7d,
           improvement: growth,
@@ -873,22 +971,22 @@
 
       return {
         title: "容量优先边界：当前参数已接近同频容量上限",
-        desc: "在 D_7d < 1 次的稳定运行底线内，当前可配置范围未找到可继续提升同频设备数的方案。若项目需要更多设备，应增加频点或分组上报，而不是继续提高单频设备密度。",
+        desc: "在 D_7d < 1 次的稳定运行底线内，当前可配置范围未找到可继续提升同频发送端数量的方案。若项目需要更多设备，应增加频点或分组上报，而不是继续提高单频设备密度。",
         dc7d: currentDc7d,
         improvement: 0,
-        note: "随机抖动窗口当前按固件固定 0~5 秒计算，不作为客户可配置项；如需作为扩容手段，需要产品侧单独评估实时性、功耗和配置复杂度。",
+        note: "V3.1 默认有效窗口不作为客户可配置项；如需展示保守模式，需要产品侧单独评估验证边界和客户解释方式。",
         impactText: "已到边界"
       };
     }
 
-    function renderSuggestions(n, T, SF, currentDc7d) {
+    function renderSuggestions(n, rxCount, T, SF, currentDc7d) {
       const list = document.getElementById("suggestion_list");
       if (!isFinite(currentDc7d)) {
-        list.innerHTML = "<div class=\"suggestion-note\">当前参数无法计算，请先检查设备数、SF 和上报周期。</div>";
+        list.innerHTML = "<div class=\"suggestion-note\">当前参数无法计算，请先检查发送端数量、接收端数量、SF 和上报周期。</div>";
         return;
       }
 
-      const plan = buildPlan(n, T, SF, currentDc7d, suggestionMode);
+      const plan = buildPlan(n, rxCount, T, SF, currentDc7d, suggestionMode);
       if (!plan) {
         list.innerHTML = "<div class=\"suggestion-note\">当前模式下未找到比当前配置更合适的自动建议。请在“配置方案对比”中手动评估更多频点拆分、分组上报或业务容忍机制。</div>";
         return;
@@ -912,6 +1010,39 @@
       html += "</div>";
       html += "<div class=\"suggestion-note\">" + plan.note + "</div>";
       list.innerHTML = html;
+    }
+
+    function renderLossRuntime(n, rxCount, T, SF, p) {
+      const grid = document.getElementById("loss_runtime_grid");
+      const linkCount = Math.max(1, rxCount);
+      const kDc = Math.ceil(DISCONNECT_SECONDS / T);
+      const windows = [
+        { label: "24 小时", hours: 24 },
+        { label: "7 天", hours: 168 },
+        { label: "30 天", hours: 720 }
+      ];
+      let html = "";
+      windows.forEach(function(item) {
+        const one = expectedLossSegments(p, T, item.hours, linkCount, 1);
+        const two = expectedLossSegments(p, T, item.hours, linkCount, 2);
+        const three = expectedLossSegments(p, T, item.hours, linkCount, 3);
+        const dc = expectedLossAtLeast(p, T, item.hours, linkCount, kDc);
+        const threeProb = calcEventProbability(three);
+        const dcProb = calcEventProbability(dc);
+        html += "<div class=\"loss-runtime-card\">";
+        html += "<div class=\"loss-runtime-title\">" + item.label + "</div>";
+        html += "<div class=\"loss-risk-main " + riskBand(dcProb) + "\">";
+        html += "<div class=\"loss-risk-label\">10 分钟断联概率</div>";
+        html += "<div class=\"loss-risk-value\">" + fmtProbability(dcProb) + "</div>";
+        html += "<div class=\"loss-risk-sub\">预计 " + fmtCount(dc) + " 段，门槛为连续 " + kDc + " 包</div>";
+        html += "</div>";
+        html += "<div class=\"loss-context-list\">";
+        html += "<div class=\"loss-context-row\"><span class=\"loss-context-label\">连续 3 包</span><span class=\"loss-context-value\">" + fmtProbability(threeProb) + "（" + fmtCount(three) + " 段）</span><span class=\"loss-context-note\">低于 10 分钟门槛，不触发断联</span></div>";
+        html += "<div class=\"loss-context-row\"><span class=\"loss-context-label\">连续 2 包</span><span class=\"loss-context-value\">" + fmtCount(two) + " 段</span><span class=\"loss-context-note\">短连续丢包，不触发断联</span></div>";
+        html += "<div class=\"loss-context-row\"><span class=\"loss-context-label\">离散 1 包</span><span class=\"loss-context-value\">" + fmtCount(one) + " 段</span><span class=\"loss-context-note\">常见离散丢包，不直接影响显示</span></div>";
+        html += "</div></div>";
+      });
+      grid.innerHTML = html;
     }
 
     function setSuggestionMode(mode) {
@@ -941,13 +1072,17 @@
     }
 
     function calc() {
-      const n = Math.max(2, parseInt(document.getElementById("n").value, 10) || 15);
+      const n = clampNumber(parseInt(document.getElementById("tx_count").value, 10) || 15, 1, MAX_CAPACITY_N);
+      const rxCount = Math.max(1, parseInt(document.getElementById("rx_count").value, 10) || 10);
       const SF = parseInt(document.getElementById("sf").value, 10) || 10;
-      const T = Math.max(60, parseFloat(document.getElementById("period").value) || 180);
+      const T = clampNumber(parseFloat(document.getElementById("period").value) || 180, MIN_PERIOD_SECONDS, MAX_PERIOD_SECONDS);
       const p = calcPcoll(n, T, SF);
-      const dc7d = calcDcCount(p, T, 168);
-      const dc24 = calcDcCount(p, T, 24);
-      const intervalText = fmtInterval(p, T);
+      const linkCount = Math.max(1, rxCount);
+      const dc7d = calcDcCount(p, T, 168, linkCount);
+      const dc24 = calcDcCount(p, T, 24, linkCount);
+      const prob7d = calcEventProbability(dc7d);
+      const prob24 = calcEventProbability(dc24);
+      const intervalText = fmtInterval(p, T, linkCount);
       const recoveryText = fmtRecovery(p, T);
       const kDc = Math.ceil(DISCONNECT_SECONDS / T);
 
@@ -964,52 +1099,53 @@
       if (!isFinite(p) || p >= 1) {
         icon.textContent = "-";
         label.textContent = "无法计算";
-        desc.textContent = "请检查输入参数，随机抖动窗口需要小于上报周期。";
+        desc.textContent = "请检查输入参数，V3.1 有效窗口需要小于上报周期。";
         dcVal.textContent = "-";
       } else if (dc7d < 0.1) {
         icon.textContent = "✓";
         label.textContent = "优秀";
-        desc.textContent = "7 天内断联风险较低，当前配置适合稳定运行。";
-        dcVal.textContent = fmtDc(dc7d);
+        desc.textContent = "7 天断联概率较低，当前配置适合稳定运行。";
+        dcVal.textContent = fmtProbability(prob7d);
       } else if (dc7d < 1) {
         icon.textContent = "!";
         label.textContent = "可接受";
-        desc.textContent = "存在偶发断联风险；如需继续降低断联次数，优先考虑缩短上报周期，最低可配置 60 秒。拆分频点或减少同频设备数可作为辅助优化。";
-        dcVal.textContent = fmtDc(dc7d);
+        desc.textContent = "存在偶发断联风险；如需继续降低断联次数，优先考虑缩短上报周期，最低可配置 60 秒。拆分频点或减少同频发送端数量可作为辅助优化。";
+        dcVal.textContent = fmtProbability(prob7d);
       } else {
         icon.textContent = "!";
         label.textContent = "有风险";
-        desc.textContent = "7 天内预计会出现断联；建议优先缩短上报周期，最低可配置 60 秒。拆分频点、减少同频设备数或降低无线信道占用时间可作为辅助优化。";
-        dcVal.textContent = fmtDc(dc7d);
+        desc.textContent = "7 天断联概率较高；建议优先缩短上报周期，最低可配置 60 秒。拆分频点、减少同频发送端数量或降低无线信道占用时间可作为辅助优化。";
+        dcVal.textContent = fmtProbability(prob7d);
       }
 
       const pPct = isFinite(p) ? (p * 100).toFixed(2) : "-";
-      document.getElementById("summary_line").innerHTML =
-        "当前配置为 <strong>" + n + " 台同频设备</strong>、<strong>" + T + " 秒上报周期</strong>、<strong>SF" + SF +
-        "</strong>。预计 7 天断联 <strong>" + fmtDc(dc7d) + "</strong>，平均约 <strong>" + intervalText +
-        "</strong> 出现一次断联，单次断联预计持续约 <strong>" + recoveryText + "</strong>。";
-
-      document.getElementById("metric_dc_24h").textContent = fmtDc(dc24);
-      document.getElementById("metric_dc_7d").textContent = fmtDc(dc7d);
+      document.getElementById("metric_prob_24h").textContent = fmtProbability(prob24);
+      document.getElementById("metric_prob_7d").textContent = fmtProbability(prob7d);
       document.getElementById("metric_interval").textContent = intervalText;
       document.getElementById("metric_recovery").textContent = recoveryText;
       document.getElementById("metric_packet_loss").textContent = pPct + "%";
       document.getElementById("metric_kdc").textContent = kDc + " 包";
-      renderSuggestions(n, T, SF, dc7d);
+      renderSuggestions(n, rxCount, T, SF, dc7d);
+      renderLossRuntime(n, rxCount, T, SF, p);
 
-      document.getElementById("tolerance_text").innerHTML =
-        "每个上报周期约有 <strong>" + pPct + "%</strong> 的单包碰撞风险。系统断联定义为 10 分钟无更新，当前上报周期下需要连续丢失 <strong>" +
-        kDc + "</strong> 包才会触发断联。单包丢失通常不会直接影响业务显示。";
-
+      if (document.getElementById("panel_compare").classList.contains("active")) {
+        calcCompare();
+        calcMatrix();
+      }
     }
 
     function calcCompare() {
       const SF = parseInt(document.getElementById("sf").value, 10) || 10;
+      const compared = {};
       ["a", "b"].forEach(function(s) {
-        const n = Math.max(2, parseInt(document.getElementById("cmp_n_" + s).value, 10) || 2);
-        const T = Math.max(60, parseFloat(document.getElementById("cmp_t_" + s).value) || 60);
+        const n = clampNumber(parseInt(document.getElementById("cmp_tx_" + s).value, 10) || 1, 1, MAX_CAPACITY_N);
+        const rxCount = Math.max(1, parseInt(document.getElementById("cmp_rx_" + s).value, 10) || 1);
+        const T = clampNumber(parseFloat(document.getElementById("cmp_t_" + s).value) || MIN_PERIOD_SECONDS, MIN_PERIOD_SECONDS, MAX_PERIOD_SECONDS);
         const p = calcPcoll(n, T, SF);
-        const dc7d = calcDcCount(p, T, 168);
+        const linkCount = Math.max(1, rxCount);
+        const dc7d = calcDcCount(p, T, 168, linkCount);
+        const prob7d = calcEventProbability(dc7d);
+        compared[s] = { n, rxCount, T, p, dc7d, prob7d };
 
         const result = document.getElementById("cmp_result_" + s);
         result.classList.remove("good", "warn", "bad");
@@ -1022,17 +1158,29 @@
           return;
         }
 
-        dcEl.textContent = fmtDc(dc7d);
-        lossEl.textContent = "单包碰撞风险 " + (p * 100).toFixed(2) + "%";
+        dcEl.textContent = fmtProbability(prob7d);
+        lossEl.textContent = "期望 " + fmtCount(dc7d) + " 段 / 7 天，单链路风险 " + (p * 100).toFixed(2) + "%";
 
-        if (dc7d < 0.1) result.classList.add("good");
-        else if (dc7d < 1) result.classList.add("warn");
+        if (prob7d < 0.05) result.classList.add("good");
+        else if (prob7d < 0.2) result.classList.add("warn");
         else result.classList.add("bad");
       });
+      const summary = document.getElementById("compare_summary");
+      if (!summary || !compared.a || !compared.b || !isFinite(compared.a.prob7d) || !isFinite(compared.b.prob7d)) return;
+      const better = compared.a.prob7d <= compared.b.prob7d ? "A" : "B";
+      const worse = better === "A" ? "B" : "A";
+      const diff = Math.abs(compared.a.prob7d - compared.b.prob7d);
+      const reason = compared.a.n !== compared.b.n
+        ? "主要差异来自同频发送端数量变化。"
+        : compared.a.T !== compared.b.T
+          ? "主要差异来自上报周期变化。"
+          : "主要差异来自业务链路数量变化。";
+      summary.textContent = "方案 " + better + " 的 7 天断联概率更低，较方案 " + worse + " 低约 " + fmtProbability(diff) + "。" + reason;
     }
 
     function calcMatrix() {
       const SF = parseInt(document.getElementById("sf").value, 10) || 10;
+      const rxCount = Math.max(1, parseInt(document.getElementById("rx_count").value, 10) || 10);
       const ns = [5, 10, 15, 20, 30];
       const Ts = [60, 120, 180, 300, 600];
 
@@ -1040,7 +1188,7 @@
         return (t / 60) + " min";
       }
 
-      let html = "<thead><tr><th>设备数 / 上报周期</th>";
+      let html = "<thead><tr><th>同频发送端 / 上报周期</th>";
       Ts.forEach(function(t) { html += "<th>" + fmtT(t) + "</th>"; });
       html += "</tr></thead><tbody>";
 
@@ -1048,21 +1196,22 @@
         html += "<tr><td class=\"cell-hd\">" + n + " 台</td>";
         Ts.forEach(function(T) {
           const p = calcPcoll(n, T, SF);
-          const dc7d = calcDcCount(p, T, 168);
+          const dc7d = calcDcCount(p, T, 168, Math.max(1, rxCount));
+          const prob7d = calcEventProbability(dc7d);
           let cls;
           let txt;
-          if (!isFinite(dc7d)) {
+          if (!isFinite(prob7d)) {
             cls = "";
             txt = "-";
-          } else if (dc7d < 0.1) {
+          } else if (prob7d < 0.05) {
             cls = "cell-good";
-            txt = dc7d < 0.01 ? "< 0.01" : dc7d.toFixed(2);
-          } else if (dc7d < 1) {
+            txt = fmtProbability(prob7d);
+          } else if (prob7d < 0.2) {
             cls = "cell-warn";
-            txt = dc7d.toFixed(2);
+            txt = fmtProbability(prob7d);
           } else {
             cls = "cell-bad";
-            txt = dc7d.toFixed(1);
+            txt = fmtProbability(prob7d);
           }
           html += "<td class=\"" + cls + "\">" + txt + "</td>";
         });
