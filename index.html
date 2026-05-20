@@ -14,6 +14,10 @@
       line-height: 1.6;
       min-width: 600px;
     }
+    .page-shell {
+      width: min(100%, 1560px);
+      margin: 0 auto;
+    }
     h1 { font-size: 1.35rem; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
     .subtitle { color: #64748b; font-size: 0.8rem; margin-bottom: 20px; }
     .subtitle code {
@@ -87,10 +91,11 @@
     .summary-line strong { color: #0f172a; }
     .metric-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
+    @media (max-width: 1100px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 800px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .metric-card {
       background: #fff;
@@ -242,7 +247,7 @@
     .dot-a { background: #2563eb; }
     .dot-b { background: #ea580c; }
     .compare-col-body { padding: 12px 14px; }
-    .compare-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .compare-inputs { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
     .compare-field label { display: block; font-size: 0.72rem; font-weight: 600; color: #475569; margin-bottom: 4px; }
     .compare-field input {
       width: 100%; padding: 6px 8px; border: 1.5px solid #e2e8f0;
@@ -313,6 +318,7 @@
   </style>
 </head>
 <body>
+<main class="page-shell">
   <h1>LoRa D2D 可靠性评估</h1>
   <p class="subtitle">
     EM300 到 WT201 的 D2D 传输可靠性预测工具
@@ -366,20 +372,15 @@
         </div>
         <div class="rating-right">
           <div class="rating-main-val" id="rating_dc_val">-</div>
-          <div class="rating-main-lbl">7 天断联概率</div>
+          <div class="rating-main-lbl">单次触发概率</div>
         </div>
       </div>
 
       <div class="metric-grid">
         <div class="metric-card">
-          <div class="metric-label">24 小时断联概率</div>
-          <div class="metric-value" id="metric_prob_24h">-</div>
-          <div class="metric-help">至少一次断联的概率</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">7 天断联概率</div>
-          <div class="metric-value" id="metric_prob_7d">-</div>
-          <div class="metric-help">至少一次断联的概率</div>
+          <div class="metric-label">断联触发概率</div>
+          <div class="metric-value" id="metric_trigger_prob">-</div>
+          <div class="metric-help">单链路单个上报位置</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">
@@ -390,25 +391,25 @@
           <div class="metric-help">长期统计期望间隔</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">
-            单次断联预计持续
-            <span class="help-dot" title="从满足断联判定开始，到下一次收到有效 D2D 包并恢复更新的平均持续时间。当前断联判定为 10 分钟无更新。">?</span>
-          </div>
-          <div class="metric-value" id="metric_recovery">-</div>
-          <div class="metric-help">触发断联后的平均时长</div>
+          <div class="metric-label">断联触发门槛</div>
+          <div class="metric-value" id="metric_kdc">-</div>
+          <div class="metric-help">10 分钟无更新</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">单包丢失风险</div>
           <div class="metric-value" id="metric_packet_loss">-</div>
           <div class="metric-help">V3.1 Web Mean 单链路</div>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">断联触发门槛</div>
-          <div class="metric-value" id="metric_kdc">-</div>
-          <div class="metric-help">10 分钟无更新</div>
-        </div>
       </div>
 
+    </div>
+
+    <div class="card">
+      <div class="card-title">运行时长下的累计风险参考</div>
+      <div class="loss-runtime-grid" id="loss_runtime_grid"></div>
+      <div class="matrix-note">
+        用于理解运行时间变长后，累计遇到连续丢包事件的机会如何增加；主判断仍以断联触发概率和长期频率为准。
+      </div>
     </div>
 
     <div class="card">
@@ -428,14 +429,6 @@
         </button>
       </div>
       <div class="suggestion-list" id="suggestion_list"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">连续丢包与 10 分钟断联估算</div>
-      <div class="loss-runtime-grid" id="loss_runtime_grid"></div>
-      <div class="matrix-note">
-        段数按 V3.1 Web Mean 单包风险估算，统计基数为业务绑定链路数 × 运行周期内的上报包位；当前页面以接收端数量作为业务绑定链路数。该工具用于解释不同运行时长下的连续丢包量级，不替代现场日志验证。
-      </div>
     </div>
   </div>
 
@@ -461,7 +454,7 @@
               </div>
             </div>
             <div class="compare-result" id="cmp_result_a">
-              <div class="r-lbl">7 天断联概率</div>
+              <div class="r-lbl">风险等级</div>
               <div class="r-val" id="cmp_dc_a">-</div>
               <div class="r-sub" id="cmp_loss_a"></div>
             </div>
@@ -485,7 +478,7 @@
               </div>
             </div>
             <div class="compare-result" id="cmp_result_b">
-              <div class="r-lbl">7 天断联概率</div>
+              <div class="r-lbl">风险等级</div>
               <div class="r-val" id="cmp_dc_b">-</div>
               <div class="r-sub" id="cmp_loss_b"></div>
             </div>
@@ -496,26 +489,28 @@
     </div>
 
     <div class="card">
-      <div class="card-title">7 天断联概率矩阵</div>
+      <div class="card-title">30 天可能断联次数矩阵</div>
       <div class="matrix-legend">
         <div class="legend-item">
-          <div class="legend-dot" style="background:#f0fdf4;border:1px solid #86efac"></div>优秀（小于 5%）
+          <div class="legend-dot" style="background:#f0fdf4;border:1px solid #86efac"></div>优秀
         </div>
         <div class="legend-item">
-          <div class="legend-dot" style="background:#fffbeb;border:1px solid #fcd34d"></div>可接受（5% 到 20%）
+          <div class="legend-dot" style="background:#fffbeb;border:1px solid #fcd34d"></div>可接受
         </div>
         <div class="legend-item">
-          <div class="legend-dot" style="background:#fff1f2;border:1px solid #fca5a5"></div>有风险（大于等于 20%）
+          <div class="legend-dot" style="background:#fff1f2;border:1px solid #fca5a5"></div>有风险
         </div>
       </div>
       <div class="table-wrap">
         <table class="matrix-table" id="dc_matrix_table"></table>
       </div>
       <div class="matrix-note">
-        横向为上报周期，单位为分钟；纵向为同频点发送端数量。矩阵数值为当前接收端数量下 7 天内至少一次断联概率，断联定义为连续超过 10 分钟未收到任何 D2D 包。上报周期越长，10 分钟断联门槛对应的连续丢包包数越少，因此断联概率会明显升高。
+        横向为上报周期，单位为分钟；纵向为同频点发送端数量。单元格数值为 30 天可能断联次数；颜色与自动优化建议一致，按 7 天期望断联段数分级：小于 0.1 段为优秀，0.1 到 1 段为可接受，大于等于 1 段为有风险。
       </div>
     </div>
   </div>
+
+</main>
 
   <script>
     const PAYLOAD = 19;
@@ -569,6 +564,11 @@
       return Math.max(1, linkCount || 1) * (hours * 3600 / T) * pDc;
     }
 
+    function calcTriggerProbability(p, T) {
+      if (!isFinite(p) || p <= 0 || p >= 1) return NaN;
+      return Math.pow(p, Math.ceil(DISCONNECT_SECONDS / T));
+    }
+
     function calcEventProbability(expectedCount) {
       if (!isFinite(expectedCount) || expectedCount < 0) return NaN;
       return 1 - Math.exp(-expectedCount);
@@ -587,6 +587,24 @@
       if (v < 0.01) return (v * 100).toFixed(2) + "%";
       if (v < 0.1) return (v * 100).toFixed(1) + "%";
       return Math.min(100, v * 100).toFixed(0) + "%";
+    }
+
+    function fmtTriggerProbability(v) {
+      if (!isFinite(v)) return "-";
+      if (v <= 0) return "0%";
+      const pct = v * 100;
+      if (pct < 0.000001) return "< 0.000001%";
+      if (pct < 0.001) return pct.toPrecision(3) + "%";
+      if (pct < 0.01) return pct.toFixed(4) + "%";
+      if (pct < 1) return pct.toFixed(3) + "%";
+      return fmtProbability(v);
+    }
+
+    function riskLabelFromDc7d(dc7d) {
+      if (!isFinite(dc7d)) return "-";
+      if (dc7d < STABILITY_TARGET_7D) return "优秀";
+      if (dc7d < OPERATION_TARGET_7D) return "可接受";
+      return "有风险";
     }
 
     function fmtInterval(p, T, linkCount) {
@@ -1027,17 +1045,16 @@
         const two = expectedLossSegments(p, T, item.hours, linkCount, 2);
         const three = expectedLossSegments(p, T, item.hours, linkCount, 3);
         const dc = expectedLossAtLeast(p, T, item.hours, linkCount, kDc);
-        const threeProb = calcEventProbability(three);
         const dcProb = calcEventProbability(dc);
         html += "<div class=\"loss-runtime-card\">";
         html += "<div class=\"loss-runtime-title\">" + item.label + "</div>";
         html += "<div class=\"loss-risk-main " + riskBand(dcProb) + "\">";
-        html += "<div class=\"loss-risk-label\">10 分钟断联概率</div>";
+        html += "<div class=\"loss-risk-label\">累计遇到 10 分钟断联的概率</div>";
         html += "<div class=\"loss-risk-value\">" + fmtProbability(dcProb) + "</div>";
         html += "<div class=\"loss-risk-sub\">预计 " + fmtCount(dc) + " 段，门槛为连续 " + kDc + " 包</div>";
         html += "</div>";
         html += "<div class=\"loss-context-list\">";
-        html += "<div class=\"loss-context-row\"><span class=\"loss-context-label\">连续 3 包</span><span class=\"loss-context-value\">" + fmtProbability(threeProb) + "（" + fmtCount(three) + " 段）</span><span class=\"loss-context-note\">低于 10 分钟门槛，不触发断联</span></div>";
+        html += "<div class=\"loss-context-row\"><span class=\"loss-context-label\">连续 3 包</span><span class=\"loss-context-value\">" + fmtCount(three) + " 段</span><span class=\"loss-context-note\">低于断联门槛，不触发断联</span></div>";
         html += "<div class=\"loss-context-row\"><span class=\"loss-context-label\">连续 2 包</span><span class=\"loss-context-value\">" + fmtCount(two) + " 段</span><span class=\"loss-context-note\">短连续丢包，不触发断联</span></div>";
         html += "<div class=\"loss-context-row\"><span class=\"loss-context-label\">离散 1 包</span><span class=\"loss-context-value\">" + fmtCount(one) + " 段</span><span class=\"loss-context-note\">常见离散丢包，不直接影响显示</span></div>";
         html += "</div></div>";
@@ -1080,10 +1097,8 @@
       const linkCount = Math.max(1, rxCount);
       const dc7d = calcDcCount(p, T, 168, linkCount);
       const dc24 = calcDcCount(p, T, 24, linkCount);
-      const prob7d = calcEventProbability(dc7d);
-      const prob24 = calcEventProbability(dc24);
+      const triggerProb = calcTriggerProbability(p, T);
       const intervalText = fmtInterval(p, T, linkCount);
-      const recoveryText = fmtRecovery(p, T);
       const kDc = Math.ceil(DISCONNECT_SECONDS / T);
 
       const block = document.getElementById("rating_block");
@@ -1104,27 +1119,25 @@
       } else if (dc7d < 0.1) {
         icon.textContent = "✓";
         label.textContent = "优秀";
-        desc.textContent = "7 天断联概率较低，当前配置适合稳定运行。";
-        dcVal.textContent = fmtProbability(prob7d);
+        desc.textContent = "连续丢满断联门槛的单次触发概率很低，当前配置适合稳定运行。";
+        dcVal.textContent = fmtTriggerProbability(triggerProb);
       } else if (dc7d < 1) {
         icon.textContent = "!";
         label.textContent = "可接受";
         desc.textContent = "存在偶发断联风险；如需继续降低断联次数，优先考虑缩短上报周期，最低可配置 60 秒。拆分频点或减少同频发送端数量可作为辅助优化。";
-        dcVal.textContent = fmtProbability(prob7d);
+        dcVal.textContent = fmtTriggerProbability(triggerProb);
       } else {
         icon.textContent = "!";
         label.textContent = "有风险";
-        desc.textContent = "7 天断联概率较高；建议优先缩短上报周期，最低可配置 60 秒。拆分频点、减少同频发送端数量或降低无线信道占用时间可作为辅助优化。";
-        dcVal.textContent = fmtProbability(prob7d);
+        desc.textContent = "按当前设备密度和上报周期折算，长期断联频率偏高；建议优先缩短上报周期或降低单频发送端数量。";
+        dcVal.textContent = fmtTriggerProbability(triggerProb);
       }
 
       const pPct = isFinite(p) ? (p * 100).toFixed(2) : "-";
-      document.getElementById("metric_prob_24h").textContent = fmtProbability(prob24);
-      document.getElementById("metric_prob_7d").textContent = fmtProbability(prob7d);
+      document.getElementById("metric_trigger_prob").textContent = fmtTriggerProbability(triggerProb);
       document.getElementById("metric_interval").textContent = intervalText;
-      document.getElementById("metric_recovery").textContent = recoveryText;
-      document.getElementById("metric_packet_loss").textContent = pPct + "%";
       document.getElementById("metric_kdc").textContent = kDc + " 包";
+      document.getElementById("metric_packet_loss").textContent = pPct + "%";
       renderSuggestions(n, rxCount, T, SF, dc7d);
       renderLossRuntime(n, rxCount, T, SF, p);
 
@@ -1144,8 +1157,9 @@
         const p = calcPcoll(n, T, SF);
         const linkCount = Math.max(1, rxCount);
         const dc7d = calcDcCount(p, T, 168, linkCount);
-        const prob7d = calcEventProbability(dc7d);
-        compared[s] = { n, rxCount, T, p, dc7d, prob7d };
+        const dc30d = calcDcCount(p, T, 720, linkCount);
+        const triggerProb = calcTriggerProbability(p, T);
+        compared[s] = { n, rxCount, T, p, dc7d, dc30d, triggerProb };
 
         const result = document.getElementById("cmp_result_" + s);
         result.classList.remove("good", "warn", "bad");
@@ -1158,31 +1172,31 @@
           return;
         }
 
-        dcEl.textContent = fmtProbability(prob7d);
-        lossEl.textContent = "期望 " + fmtCount(dc7d) + " 段 / 7 天，单链路风险 " + (p * 100).toFixed(2) + "%";
+        dcEl.textContent = riskLabelFromDc7d(dc7d);
+        lossEl.textContent = "30 天可能断联 " + fmtCount(dc30d) + " 次；单次触发概率 " + fmtTriggerProbability(triggerProb);
 
-        if (prob7d < 0.05) result.classList.add("good");
-        else if (prob7d < 0.2) result.classList.add("warn");
+        if (dc7d < 0.1) result.classList.add("good");
+        else if (dc7d < 1) result.classList.add("warn");
         else result.classList.add("bad");
       });
       const summary = document.getElementById("compare_summary");
-      if (!summary || !compared.a || !compared.b || !isFinite(compared.a.prob7d) || !isFinite(compared.b.prob7d)) return;
-      const better = compared.a.prob7d <= compared.b.prob7d ? "A" : "B";
+      if (!summary || !compared.a || !compared.b || !isFinite(compared.a.dc30d) || !isFinite(compared.b.dc30d)) return;
+      const better = compared.a.dc30d <= compared.b.dc30d ? "A" : "B";
       const worse = better === "A" ? "B" : "A";
-      const diff = Math.abs(compared.a.prob7d - compared.b.prob7d);
+      const diff = Math.abs(compared.a.dc30d - compared.b.dc30d);
       const reason = compared.a.n !== compared.b.n
         ? "主要差异来自同频发送端数量变化。"
         : compared.a.T !== compared.b.T
           ? "主要差异来自上报周期变化。"
           : "主要差异来自业务链路数量变化。";
-      summary.textContent = "方案 " + better + " 的 7 天断联概率更低，较方案 " + worse + " 低约 " + fmtProbability(diff) + "。" + reason;
+      summary.textContent = "方案 " + better + " 的 30 天可能断联次数更低，较方案 " + worse + " 低约 " + fmtCount(diff) + " 次。" + reason;
     }
 
     function calcMatrix() {
       const SF = parseInt(document.getElementById("sf").value, 10) || 10;
       const rxCount = Math.max(1, parseInt(document.getElementById("rx_count").value, 10) || 10);
       const ns = [5, 10, 15, 20, 30];
-      const Ts = [60, 120, 180, 300, 600];
+      const Ts = [60, 120, 180, 300];
 
       function fmtT(t) {
         return (t / 60) + " min";
@@ -1197,21 +1211,21 @@
         Ts.forEach(function(T) {
           const p = calcPcoll(n, T, SF);
           const dc7d = calcDcCount(p, T, 168, Math.max(1, rxCount));
-          const prob7d = calcEventProbability(dc7d);
+          const dc30d = calcDcCount(p, T, 720, Math.max(1, rxCount));
           let cls;
           let txt;
-          if (!isFinite(prob7d)) {
+          if (!isFinite(dc30d)) {
             cls = "";
             txt = "-";
-          } else if (prob7d < 0.05) {
+          } else if (dc7d < 0.1) {
             cls = "cell-good";
-            txt = fmtProbability(prob7d);
-          } else if (prob7d < 0.2) {
+            txt = fmtCount(dc30d);
+          } else if (dc7d < 1) {
             cls = "cell-warn";
-            txt = fmtProbability(prob7d);
+            txt = fmtCount(dc30d);
           } else {
             cls = "cell-bad";
-            txt = fmtProbability(prob7d);
+            txt = fmtCount(dc30d);
           }
           html += "<td class=\"" + cls + "\">" + txt + "</td>";
         });
