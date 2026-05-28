@@ -26,8 +26,6 @@
   --orange-light: rgba(191,82,0,0.10);
   --red: #c7000b;
   --red-light: rgba(199,0,11,0.10);
-  --toast-bg: #1d1d1f;
-  --toast-text: #ffffff;
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 22px;
@@ -59,8 +57,6 @@
     --orange-light: rgba(255,159,10,0.12);
     --red: #ff453a;
     --red-light: rgba(255,69,58,0.12);
-    --toast-bg: #f5f5f7;
-    --toast-text: #1d1d1f;
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.18), 0 0 1px rgba(0,0,0,0.12);
     --shadow-md: 0 8px 32px rgba(0,0,0,0.24), 0 0 1px rgba(0,0,0,0.12);
     --shadow-lg: 0 20px 60px rgba(0,0,0,0.30), 0 0 1px rgba(0,0,0,0.12);
@@ -169,31 +165,6 @@ body{
   margin-bottom:16px;
   padding:0 4px;
 }
-
-/* ── CONFIG ACTIONS ── */
-.config-actions{display:flex;gap:8px;flex-shrink:0}
-.action-btn{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:6px 14px;
-  border:0.5px solid var(--border);
-  border-radius:20px;
-  background:var(--surface-solid);
-  color:var(--text-secondary);
-  font-size:12px;font-weight:500;
-  cursor:pointer;
-  font-family:var(--sans);
-  transition:all var(--transition);
-}
-.action-btn:hover{
-  color:var(--text);
-  border-color:var(--border-strong);
-  background:var(--surface);
-}
-.action-btn:focus-visible{
-  outline:2px solid var(--blue);
-  outline-offset:2px;
-}
-.action-btn svg{flex-shrink:0}
 
 /* ── CARD ── */
 .card{
@@ -735,7 +706,6 @@ input[type=number].input-invalid:focus{
   .hero-subtitle{
     max-width:100%;
   }
-  .config-actions{flex-wrap:wrap}
 }
 
 /* ── PRINT ── */
@@ -749,7 +719,7 @@ input[type=number].input-invalid:focus{
   .card{box-shadow:none;border:1px solid #ddd;break-inside:avoid;backdrop-filter:none;-webkit-backdrop-filter:none;margin-bottom:12px}
   .signal-section{border-top:1px solid #ddd}
   .section-label{margin-top:18px!important}
-  .action-btn,.advanced-toggle,.mode-selector,#suggestion_list{display:none}
+    .advanced-toggle,.mode-selector,#suggestion_list{display:none}
   .advanced-body{display:block!important}
   .metric-card + .metric-card{border-color:#ddd}
   .runtime-card{border:1px solid #ddd}
@@ -780,19 +750,7 @@ input[type=number].input-invalid:focus{
   </header>
 
   <!-- CONFIG CARD -->
-  <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-    <span>配置参数</span>
-    <div class="config-actions">
-      <button class="action-btn" onclick="shareUrl()" title="复制含当前参数的链接">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-        分享配置
-      </button>
-      <button class="action-btn" onclick="resetDefaults()" title="恢复默认参数">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-        恢复默认
-      </button>
-    </div>
-  </div>
+  <div class="section-label">配置参数</div>
   <div class="card config-card" style="margin-bottom:16px">
     <div class="config-cols">
       <!-- EM300 -->
@@ -1056,44 +1014,12 @@ function loadFromHash(){
   }catch(e){}
 }
 
-function shareUrl(){
-  paramsToHash();
-  const base=location.href.split("#")[0];
-  const url=base+"#"+_paramCache;
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(url).then(()=>showToast("链接已复制")).catch(()=>showToast("参数已生成：#"+_paramCache));
-  }else{
-    showToast("参数已生成：#"+_paramCache);
-  }
-}
-
-function showToast(msg){
-  let t=document.getElementById("toast");
-  if(!t){t=document.createElement("div");t.id="toast";t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--toast-bg);color:var(--toast-text);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity 0.2s";document.body.appendChild(t);}
-  t.textContent=msg;t.style.opacity="1";
-  setTimeout(()=>{t.style.opacity="0"},2000);
-}
-
 function toggleAdvanced(){
   const btn=document.getElementById("adv_toggle");
   const body=document.getElementById("adv_body");
   const expanded=btn.classList.toggle("open");
   body.classList.toggle("open");
   btn.setAttribute("aria-expanded",expanded?"true":"false");
-}
-
-function resetDefaults(){
-  const defaults={tx_count:"15",period:"3",sf:"10",rx_count:"10",wt_report_period:"10",panel_ops:"0",active_hours:"10",d2d_rssi:"",d2d_snr:""};
-  Object.entries(defaults).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
-  suggestionMode="stability";
-  ["stability","power","capacity"].forEach(n=>{
-    const btn=document.getElementById("mode_"+n);
-    btn.classList.toggle("active",n==="stability");
-    btn.setAttribute("aria-checked",n==="stability"?"true":"false");
-  });
-  INPUT_RULES.forEach(rule=>{const el=document.getElementById(rule.id);if(el)setFieldError(el,"");});
-  history.replaceState(null,"",location.href.split("#")[0]);
-  calcImmediate();
 }
 
 function handleModeKey(e,mode){
